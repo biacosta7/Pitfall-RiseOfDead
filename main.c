@@ -4,7 +4,7 @@
 #define GROUND_Y 150
 #define JUMP_HEIGHT 15
 
-// Para rodar: gcc -I./libs/include -I/usr/local/include/SDL2 ./main.c ./libs/src/*.c -o test.exe -L/usr/local/lib -lSDL2
+// gcc -I/usr/local/include/SDL2 ./main.c -o test.exe -L/usr/local/lib -lSDL2
 
 // função para carregar uma textura a partir de um arquivo BMP
 SDL_Texture* loadTexture(const char* filePath, SDL_Renderer* renderer) {
