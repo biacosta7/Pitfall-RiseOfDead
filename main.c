@@ -18,38 +18,42 @@ SDL_Texture* loadTexture(const char* filePath, SDL_Renderer* renderer) {
     return texture;
 }
 
-// função para desenhar um bitmap na tela
-void drawBitmap(int x, int y, int width, int height, SDL_Texture* texture, SDL_Renderer* renderer) {
-    SDL_Rect destRect = { x, y, width, height };  // largura e altura da textura
-    SDL_RenderCopy(renderer, texture, NULL, &destRect);
+// função para desenhar um bitmap na tela com possibilidade de espelhamento
+void drawBitmap(int x, int y, int width, int height, SDL_Texture* texture, SDL_Renderer* renderer, SDL_RendererFlip flip) {
+    SDL_Rect destRect = { x, y, width, height };
+    SDL_RenderCopyEx(renderer, texture, NULL, &destRect, 0, NULL, flip);
 }
 
 int speed = 2; // velocidade
 int onGround = 0;
 int velocityY = 0;
-int velocityX = 0; // Velocidade horizontal
+int velocityX = 0;
+SDL_RendererFlip flip = SDL_FLIP_HORIZONTAL; // Controle para espelhamento horizontal
 
-//SDLK_letra - tecla pressionada 
+// função para lidar com entrada de movimento e pulo
 void handleInput(int input) {
-    if (input == SDLK_w && onGround) {  
-        velocityY = -JUMP_HEIGHT;  // Inicia o pulo
+    if (input == SDLK_w && onGround) {
+        velocityY = -JUMP_HEIGHT;
         onGround = 0;
     }
-    if (input == SDLK_d) { 
-        velocityX = speed;   // Move para direita
+    if (input == SDLK_d) {
+        velocityX = speed;
+        flip = SDL_FLIP_HORIZONTAL; // Direção para a esquerda
     }
-    if (input == SDLK_a) {  
-        velocityX = -speed;  // Move para esquerda
+    if (input == SDLK_a) {
+        velocityX = -speed;
+        flip = SDL_FLIP_NONE ; // Direção para a direita
     }
 }
-void updatePlayerPosition(int *x,int *y){
-    // Movimento horizontal
+
+// função para atualizar a posição do jogador
+void updatePlayerPosition(int *x, int *y) {
     *x += velocityX;
 
-    if(!onGround){
-        velocityY += GRAVITY; //aplica gravidade
-        *y += velocityY; //atualiza posicao vertical
-        if(*y >= 220){
+    if (!onGround) {
+        velocityY += GRAVITY;
+        *y += velocityY;
+        if (*y >= 220) {
             *y = 220;
             onGround = 1;
             velocityY = 0;
@@ -58,10 +62,9 @@ void updatePlayerPosition(int *x,int *y){
 }
 
 int main(int argc, char* argv[]) {
-    int x = 10, y = 210;  // posição inicial do personagem
+    int x = 10, y = 210;
     int input;
 
-    // inicializa o SDL
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("Erro ao inicializar SDL: %s\n", SDL_GetError());
         return 1;
@@ -69,27 +72,21 @@ int main(int argc, char* argv[]) {
 
     SDL_Window* window = SDL_CreateWindow("Pitfall: Rise Of Dead", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 400, 0);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
-    
+
     SDL_Texture* backgroundTexture = loadTexture("./assets/map/layers/Layer_0002_7.bmp", renderer);
+    SDL_Texture* characterTexture = loadTexture("./assets/player/player6.bmp", renderer);
 
-    const char* bmpFilePath = "./assets/zombie-solo.bmp";
-    SDL_Texture* characterTexture = loadTexture(bmpFilePath, renderer);
+    int groundWidth = 800;
+    int groundHeight = 450;
 
-    // Definindo a largura e altura do solo
-    int groundWidth = 800; // largura total da janela
-    int groundHeight = 450; // altura de verdade solo (nao é ao contrário)
     while (1) {
-        // limpa a tela
         SDL_RenderClear(renderer);
 
-        // desenha o solo na parte inferior
-        drawBitmap(0, GROUND_Y, groundWidth, groundHeight, backgroundTexture, renderer); // desenha o solo na parte inferior
-        updatePlayerPosition(&x,&y);
-        // desenha o personagem com o bitmap na nova posição
-        drawBitmap(x, y, 64, 64, characterTexture, renderer);
-        SDL_RenderPresent(renderer);  // atualiza a tela
+        drawBitmap(0, GROUND_Y, groundWidth, groundHeight, backgroundTexture, renderer, SDL_FLIP_NONE);
+        updatePlayerPosition(&x, &y);
+        drawBitmap(x, y, 64, 64, characterTexture, renderer, flip); // Desenha o personagem com espelhamento
+        SDL_RenderPresent(renderer);
 
-        // processa eventos
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
@@ -102,23 +99,18 @@ int main(int argc, char* argv[]) {
             }
             if (event.type == SDL_KEYDOWN) {
                 input = event.key.keysym.sym;
-                
-                // Chama a função para pulo e movimento inicial
                 handleInput(input);
             }
             if (event.type == SDL_KEYUP) {
                 input = event.key.keysym.sym;
-                
-                // Para o movimento horizontal quando as teclas são soltas
                 if (input == SDLK_a || input == SDLK_d) {
                     velocityX = 0;
                 }
             }
         }
-        SDL_Delay(16);  // limita a taxa de atualização (aprox. 60 fps)
+        SDL_Delay(16);
     }
 
-    // libera 
     SDL_DestroyTexture(backgroundTexture);
     SDL_DestroyTexture(characterTexture);
     SDL_DestroyRenderer(renderer);
