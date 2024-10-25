@@ -1,8 +1,6 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
-#include "screen.h"
-#include "keyboard.h"
-#define GRAVITY 1
+#define GRAVITY 2
 #define GROUND_Y 150
 #define JUMP_HEIGHT 15
 
@@ -26,23 +24,27 @@ void drawBitmap(int x, int y, int width, int height, SDL_Texture* texture, SDL_R
     SDL_RenderCopy(renderer, texture, NULL, &destRect);
 }
 
-int speed = 5; // velocidade
-int onGround = 1;
+int speed = 10; // velocidade
+int onGround = 0;
 int velocityY = 0;
+int velocityX = 10; // Velocidade horizontal
 
-void movePlayer(int *x, int *y, char input) {
-    if (input == 'w' && onGround){  
-        velocityY = -JUMP_HEIGHT; // cima
+void handleInput(int input) {
+    if (input == SDLK_w && onGround) {  
+        velocityY = -JUMP_HEIGHT;  // Inicia o pulo
         onGround = 0;
-    }else if (input == 's') { 
-        (*y) += speed; // baixo
-    } else if (input == 'a') {  
-        (*x) -= speed; // esquerda
-    } else if (input == 'd') { 
-        (*x) += speed; // direita
+    }
+    if (input == SDLK_d) { 
+        velocityX = speed;   // Move para direita
+    }
+    if (input == SDLK_a) {  
+        velocityX = -speed;  // Move para esquerda
     }
 }
-void updatePlayerPosition(int *y){
+void updatePlayerPosition(int *x,int *y){
+    // Movimento horizontal
+    *x += velocityX;
+
     if(!onGround){
         velocityY += GRAVITY; //aplica gravidade
         *y += velocityY; //atualiza posicao vertical
@@ -54,7 +56,7 @@ void updatePlayerPosition(int *y){
     }
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     int x = 10, y = 210;  // posição inicial do personagem
     int input;
 
@@ -81,7 +83,7 @@ int main() {
 
         // desenha o solo na parte inferior
         drawBitmap(0, GROUND_Y, groundWidth, groundHeight, backgroundTexture, renderer); // desenha o solo na parte inferior
-        updatePlayerPosition(&y);
+        updatePlayerPosition(&x,&y);
         // desenha o personagem com o bitmap na nova posição
         drawBitmap(x, y, 64, 64, characterTexture, renderer);
         SDL_RenderPresent(renderer);  // atualiza a tela
@@ -99,12 +101,19 @@ int main() {
             }
             if (event.type == SDL_KEYDOWN) {
                 input = event.key.keysym.sym;
-
-                // chama a função para mover o personagem
-                movePlayer(&x, &y, input);
+                
+                // Chama a função para pulo e movimento inicial
+                handleInput(input);
+            }
+            if (event.type == SDL_KEYUP) {
+                input = event.key.keysym.sym;
+                
+                // Para o movimento horizontal quando as teclas são soltas
+                if (input == SDLK_a || input == SDLK_d) {
+                    velocityX = 0;
+                }
             }
         }
-
         SDL_Delay(16);  // limita a taxa de atualização (aprox. 60 fps)
     }
 
