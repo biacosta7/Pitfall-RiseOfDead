@@ -1,8 +1,8 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
-#define GRAVITY 2
+#define GRAVITY 1
 #define GROUND_Y 150
-#define JUMP_HEIGHT 15
+#define JUMP_HEIGHT 17
 
 // gcc -I/usr/local/include/SDL2 ./main.c -o test.exe -L/usr/local/lib -lSDL2
 
@@ -24,11 +24,12 @@ void drawBitmap(int x, int y, int width, int height, SDL_Texture* texture, SDL_R
     SDL_RenderCopy(renderer, texture, NULL, &destRect);
 }
 
-int speed = 10; // velocidade
+int speed = 2; // velocidade
 int onGround = 0;
 int velocityY = 0;
-int velocityX = 10; // Velocidade horizontal
+int velocityX = 0; // Velocidade horizontal
 
+//SDLK_letra - tecla pressionada 
 void handleInput(int input) {
     if (input == SDLK_w && onGround) {  
         velocityY = -JUMP_HEIGHT;  // Inicia o pulo
