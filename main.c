@@ -1,18 +1,17 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
 #define GRAVIDADE 1
-#define GROUND_Y 150
 #define PULO_ALTURA 17
 
 // gcc -I/usr/local/include/SDL2 ./main.c -o test.exe -L/usr/local/lib -lSDL2
 
 struct Personagem {
-    int x, y;                   // Posição do personagem na tela
-    int velocityX, velocityY;   // Velocidade horizontal e vertical
-    int onGround;               // Indicador de se está no chão ou pulando
-    SDL_Texture* texture;       // Textura do personagem (imagem)
-    SDL_RendererFlip flip;      // Orientação do personagem (esquerda ou direita)
-};  
+    int x, y;                   // posição do personagem na tela
+    int velocityX, velocityY;   // velocidade horizontal e vertical
+    int onGround;               // indicador de se está no chão ou pulando
+    SDL_Texture* texture;       // textura do personagem (imagem)
+    SDL_RendererFlip flip;      // orientação do personagem (esquerda ou direita)
+};
 
 // função para carregar uma textura a partir de um arquivo BMP
 SDL_Texture* loadTexture(const char* filePath, SDL_Renderer* renderer) {
@@ -39,24 +38,25 @@ void handleInput(struct Personagem* player, int input) {
         player->onGround = 0;
     }
     if (input == SDLK_d) {
-        player->velocityX = 2;  // Velocidade para direita
+        player->velocityX = 2;  // velocidade para direita
         player->flip = SDL_FLIP_HORIZONTAL;
     }
     if (input == SDLK_a) {
-        player->velocityX = -2; // Velocidade para esquerda
+        player->velocityX = -2; // velocidade para esquerda
         player->flip = SDL_FLIP_NONE;
     }
 }
 
 // função para atualizar a posição do personagem
-void updatePlayerPosition(struct Personagem* personagem) {
-    personagem->x += personagem->velocityX;
+void updatePlayerPosition(struct Personagem* personagem, int groundY, int personagemAltura) {
+    personagem->x += personagem->velocityX; // atualiza a posição horizontal
 
-    if (!personagem->onGround) {
+    if (!personagem->onGround) { 
         personagem->velocityY += GRAVIDADE;
         personagem->y += personagem->velocityY;
-        if (personagem->y >= 220) {
-            personagem->y = 220;
+
+        if (personagem->y >= groundY - personagemAltura) {
+            personagem->y = groundY - personagemAltura;
             personagem->onGround = 1;
             personagem->velocityY = 0;
         }
@@ -65,37 +65,50 @@ void updatePlayerPosition(struct Personagem* personagem) {
 
 int main(int argc, char* argv[]) {
     int input;
+    int isFullscreen = 0;
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("Erro ao inicializar SDL: %s\n", SDL_GetError());
         return 1;
     }
 
-    SDL_Window* window = SDL_CreateWindow("Pitfall: Rise Of Dead", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 400, 0);
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
+    int windowWidth=800, windowHeight=400;
 
-    SDL_Texture* backgroundTexture = loadTexture("./assets/map/ground-gray.bmp", renderer);
-    // Carregar texturas para o jogador e zumbis
-    struct Personagem player = {10, 210, 0, 0, 1, loadTexture("./assets/player/player6.bmp", renderer), SDL_FLIP_HORIZONTAL};
-    struct Personagem zumbi_frank = {100, 220, 0, 0, 1, loadTexture("./assets/zombie-f/zumbi_f3.bmp", renderer), SDL_FLIP_NONE};
-    struct Personagem zumbi_yoda = {300, 220, 0, 0, 1, loadTexture("./assets/zombie-y/zumbi_y3.bmp", renderer), SDL_FLIP_NONE};
-    struct Personagem zumbi_hairy = {500, 220, 0, 0, 1, loadTexture("./assets/zombie-h/zombie-solo.bmp", renderer), SDL_FLIP_NONE};
+    SDL_Window* window = SDL_CreateWindow("Pitfall: Rise Of Dead", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
+    
+    SDL_Texture* backgroundTexture = loadTexture("./assets/map/ground-green.bmp", renderer);
+
+    SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+
+    // defini o groundY como 80% da altura da janela
+    int groundY = (int)(windowHeight * 0.8);
+    int personagemLargura = windowWidth / 10;
+    int personagemAltura = windowHeight / 6;
+
+    // carregar texturas para o jogador e zumbis
+    struct Personagem player = {10, groundY - personagemAltura, 0, 0, 1, loadTexture("./assets/player/player6.bmp", renderer), SDL_FLIP_HORIZONTAL};
+    struct Personagem zumbi_frank = {100, groundY - personagemAltura, 0, 0, 1, loadTexture("./assets/zombie-f/zumbi_f3.bmp", renderer), SDL_FLIP_NONE};
+    struct Personagem zumbi_yoda = {300, groundY - personagemAltura, 0, 0, 1, loadTexture("./assets/zombie-y/zumbi_y3.bmp", renderer), SDL_FLIP_NONE};
+    struct Personagem zumbi_hairy = {500, groundY - personagemAltura, 0, 0, 1, loadTexture("./assets/zombie-h/zombie-solo.bmp", renderer), SDL_FLIP_NONE};
 
     while (1) {
+        SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+        personagemLargura = windowWidth / 10;
+        personagemAltura = windowHeight / 6;
+
         SDL_RenderClear(renderer);
 
-        // Desenha o fundo
-        SDL_Rect bgRect = { 0, GROUND_Y, 800, 450 };
+        // desenha o fundo com o tamanho da janela
+        SDL_Rect bgRect = { 0, groundY, windowWidth, windowHeight - groundY};
         SDL_RenderCopy(renderer, backgroundTexture, NULL, &bgRect);
 
-        // Atualiza e desenha o jogador
-        updatePlayerPosition(&player);
-        drawBitmap(&player, 64, 64, renderer);
-
-        // Atualiza e desenha zumbis
-        drawBitmap(&zumbi_frank, 64, 64, renderer);
-        drawBitmap(&zumbi_yoda, 64, 64, renderer);
-        drawBitmap(&zumbi_hairy, 64, 64, renderer);
+        // atualiza e desenha o jogador e zumbis
+        updatePlayerPosition(&player, groundY, personagemAltura);
+        drawBitmap(&player, personagemLargura, personagemAltura, renderer);
+        drawBitmap(&zumbi_frank, personagemLargura, personagemAltura, renderer);
+        drawBitmap(&zumbi_yoda, personagemLargura, personagemAltura, renderer);
+        drawBitmap(&zumbi_hairy, personagemLargura, personagemAltura, renderer);
 
         SDL_RenderPresent(renderer);
 
@@ -121,6 +134,15 @@ int main(int argc, char* argv[]) {
                 if (input == SDLK_a || input == SDLK_d) {
                     player.velocityX = 0;
                 }
+            }
+            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_f) {
+                isFullscreen = !isFullscreen; // Alterna o estado
+                if (isFullscreen) {
+                    SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+                } else {
+                    SDL_SetWindowFullscreen(window, 0);
+                    SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+                }            
             }
         }
         SDL_Delay(16);
