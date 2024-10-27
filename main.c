@@ -2,15 +2,17 @@
 #include <stdio.h>
 #define GRAVIDADE 1
 #define PULO_ALTURA 17
+// gcc -I/usr/local/include/SDL2 ./main.c -o test.exe -L/usr/local/lib -lSDL2
 
 struct Personagem {
-    int x, y;                   
-    int velocityX, velocityY;   
-    int onGround;               
-    SDL_Texture* texture;       
-    SDL_RendererFlip flip;      
+    int x, y;                   // posição do personagem na tela
+    int velocityX, velocityY;   // velocidade horizontal e vertical
+    int onGround;               // indicador de se está no chão ou pulando
+    SDL_Texture* texture;       // textura do personagem (imagem)
+    SDL_RendererFlip flip;      // orientação do personagem (esquerda ou direita)  
 };
 
+// função para carregar uma textura a partir de um arquivo BMP
 SDL_Texture* loadTexture(const char* filePath, SDL_Renderer* renderer) {
     SDL_Surface* surface = SDL_LoadBMP(filePath);
     if (!surface) {
@@ -22,11 +24,13 @@ SDL_Texture* loadTexture(const char* filePath, SDL_Renderer* renderer) {
     return texture;
 }
 
+// função para desenhar um bitmap na tela
 void drawBitmap(struct Personagem* personagem, int largura, int altura, SDL_Renderer* renderer) {
     SDL_Rect destRect = { personagem->x, personagem->y, largura, altura };
     SDL_RenderCopyEx(renderer, personagem->texture, NULL, &destRect, 0, NULL, personagem->flip);
 }
 
+// função para lidar com entrada de movimento e pulo
 void handleInput(struct Personagem* player, int input) {
     if (input == SDLK_w && player->onGround) {
         player->velocityY = -PULO_ALTURA;
@@ -42,6 +46,7 @@ void handleInput(struct Personagem* player, int input) {
     }
 }
 
+// função para atualizar a posição do personagem
 void updatePlayerPosition(struct Personagem* personagem, int groundY) {
     personagem->x += personagem->velocityX;
 
@@ -81,10 +86,12 @@ int main(int argc, char* argv[]) {
     SDL_Texture* backgroundTextureNormal = loadTexture("./assets/map/forest-ground.bmp", renderer);
     SDL_Texture* backgroundTextureFullscreen = loadTexture("./assets/map/forest-groundG.bmp", renderer);
 
+    // defini o groundY como 80% da altura da janela
     int groundY = (int)(windowHeight * 0.8);
     int personagemLargura = windowWidth / 10;
     int personagemAltura = windowHeight / 6;
 
+    // carregar texturas para o jogador e zumbis
     struct Personagem player = {10, groundY - personagemAltura, 0, 0, 1, loadTexture("./assets/player/player6.bmp", renderer), SDL_FLIP_HORIZONTAL};
 
     while (1) {
@@ -133,12 +140,12 @@ int main(int argc, char* argv[]) {
                 }
             }
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_f) {
-                isFullscreen = !isFullscreen; // Alterna o estado
+                isFullscreen = !isFullscreen; // alterna o estado
                 if (isFullscreen) {
                     SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
                 } else {
                     SDL_SetWindowFullscreen(window, 0);
-                    SDL_SetWindowSize(window, fixedWindowWidth, fixedWindowHeight); // Restaura o tamanho fixo da janela
+                    SDL_SetWindowSize(window, fixedWindowWidth, fixedWindowHeight); // restaura o tamanho fixo da janela
                 }            
             }
         }
