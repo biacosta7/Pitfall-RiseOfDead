@@ -8,3 +8,5 @@ programa
 # Ignorar arquivos objeto e intermediários da compilação
 *.o
 *.obj
+
+.DS_Store
