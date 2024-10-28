@@ -1,18 +1,29 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
-#define GRAVIDADE 1
-#define PULO_ALTURA 17
-// gcc -I/usr/local/include/SDL2 ./main.c -o test.exe -L/usr/local/lib -lSDL2
 
+#define FRAME_DELAY 150
+#define GRAVIDADE 2
+#define PULO_ALTURA 10
+
+// Estrutura para armazenar os dados do personagem
 struct Personagem {
     int x, y;                   // posição do personagem na tela
     int velocityX, velocityY;   // velocidade horizontal e vertical
     int onGround;               // indicador de se está no chão ou pulando
-    SDL_Texture* texture;       // textura do personagem (imagem)
+    SDL_Texture* textureIdle2;   // textura idle do personagem (imagem)
+    SDL_Texture* textureRun;    // textura de corrida do personagem (imagem)
+    SDL_Texture* textureJump;   // textura de pulo do personagem (imagem)
+    SDL_Texture* currentTexture; // textura atual do personagem
     SDL_RendererFlip flip;      // orientação do personagem (esquerda ou direita)  
+    int frameWidth, frameHeight; // largura e altura de cada quadro no spritesheet
+    int currentFrame;           // quadro atual da animação
+    int totalFramesIdle2;        // número total de quadros da animação idle
+    int totalFramesRun;         // número total de quadros da animação de corrida
+    int totalFramesJump;        // número total de quadros da animação de pulo
+    Uint32 lastFrameTime;       // tempo do último quadro
 };
 
-// função para carregar uma textura a partir de um arquivo BMP
+// Função para carregar uma textura a partir de um arquivo BMP
 SDL_Texture* loadTexture(const char* filePath, SDL_Renderer* renderer) {
     SDL_Surface* surface = SDL_LoadBMP(filePath);
     if (!surface) {
@@ -24,29 +35,49 @@ SDL_Texture* loadTexture(const char* filePath, SDL_Renderer* renderer) {
     return texture;
 }
 
-// função para desenhar um bitmap na tela
-void drawBitmap(struct Personagem* personagem, int largura, int altura, SDL_Renderer* renderer) {
-    SDL_Rect destRect = { personagem->x, personagem->y, largura, altura };
-    SDL_RenderCopyEx(renderer, personagem->texture, NULL, &destRect, 0, NULL, personagem->flip);
+// Função para desenhar o personagem na tela
+void drawCharacter(struct Personagem* personagem, SDL_Renderer* renderer) {
+    SDL_Rect srcRect = { personagem->currentFrame * personagem->frameWidth, 0, personagem->frameWidth, personagem->frameHeight };
+    SDL_Rect destRect = { personagem->x, personagem->y, personagem->frameWidth, personagem->frameHeight };
+    SDL_RenderCopyEx(renderer, personagem->currentTexture, &srcRect, &destRect, 0, NULL, personagem->flip);
 }
 
-// função para lidar com entrada de movimento e pulo
+// Função para lidar com entrada de movimento e pulo
 void handleInput(struct Personagem* player, int input) {
     if (input == SDLK_w && player->onGround) {
         player->velocityY = -PULO_ALTURA;
+        player->currentTexture = player->textureJump; // Trocar para textura de pulo
+        player->currentFrame = 0; // Reiniciar a animação de pulo
         player->onGround = 0;
     }
     if (input == SDLK_d) {
-        player->velocityX = 2;
-        player->flip = SDL_FLIP_HORIZONTAL;
+        player->velocityX = 10;
+        player->flip = SDL_FLIP_NONE; // Olhar para direita
+        if (player->onGround) {
+            player->currentTexture = player->textureRun; // Trocar para textura de corrida se no chão
+        }
     }
     if (input == SDLK_a) {
-        player->velocityX = -2;
-        player->flip = SDL_FLIP_NONE;
+        player->velocityX = -10;
+        player->flip = SDL_FLIP_HORIZONTAL; // Olhar para esquerda
+        if (player->onGround) {
+            player->currentTexture = player->textureRun; // Trocar para textura de corrida se no chão
+        }
     }
 }
 
-// função para atualizar a posição do personagem
+// Função para parar a animação de corrida ao soltar as teclas de movimento
+void handleKeyUp(struct Personagem* player, int input) {
+    if (input == SDLK_a || input == SDLK_d) {
+        player->velocityX = 0;
+        if (player->onGround) {
+            player->currentTexture = player->textureIdle2; // Voltar para textura de idle
+            player->totalFramesIdle2 = 5;
+        }
+    }
+}
+
+// Função para atualizar a posição do personagem e aplicar a gravidade
 void updatePlayerPosition(struct Personagem* personagem, int groundY) {
     personagem->x += personagem->velocityX;
 
@@ -54,14 +85,26 @@ void updatePlayerPosition(struct Personagem* personagem, int groundY) {
         personagem->velocityY += GRAVIDADE;
         personagem->y += personagem->velocityY;
 
-        int texturaLargura, texturaAltura;
-        SDL_QueryTexture(personagem->texture, NULL, NULL, &texturaLargura, &texturaAltura);
-
-        if (personagem->y >= groundY - texturaAltura) {
-            personagem->y = groundY - texturaAltura;
+        if (personagem->y >= groundY - personagem->frameHeight) {
+            personagem->y = groundY - personagem->frameHeight;
             personagem->onGround = 1;
             personagem->velocityY = 0;
+            if (personagem->velocityX == 0) {
+                personagem->currentTexture = personagem->textureIdle2;
+            } else {
+                personagem->currentTexture = personagem->textureRun;
+            }
         }
+    }
+}
+
+// Função para atualizar o quadro atual da animação
+void updateAnimation(struct Personagem* personagem) {
+    if (SDL_GetTicks() - personagem->lastFrameTime > FRAME_DELAY) {
+        personagem->lastFrameTime = SDL_GetTicks();
+        int totalFrames = personagem->currentTexture == personagem->textureRun ? personagem->totalFramesRun :
+                          (personagem->currentTexture == personagem->textureJump ? personagem->totalFramesJump : personagem->totalFramesIdle2);
+        personagem->currentFrame = (personagem->currentFrame + 1) % totalFrames;
     }
 }
 
@@ -80,41 +123,41 @@ int main(int argc, char* argv[]) {
     int windowHeight = fixedWindowHeight;
 
     SDL_Window* window = SDL_CreateWindow("Pitfall: Rise Of Dead", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
     
     // Carregar diferentes texturas de fundo
     SDL_Texture* backgroundTextureNormal = loadTexture("./assets/map/forest-ground.bmp", renderer);
     SDL_Texture* backgroundTextureFullscreen = loadTexture("./assets/map/forest-groundG.bmp", renderer);
 
-    // defini o groundY como 80% da altura da janela
+    // Definir groundY como 80% da altura da janela
     int groundY = (int)(windowHeight * 0.8);
-    int personagemLargura = windowWidth / 10;
-    int personagemAltura = windowHeight / 6;
 
-    // carregar texturas para o jogador e zumbis
-    struct Personagem player = {10, groundY - personagemAltura, 0, 0, 1, loadTexture("./assets/player/player6.bmp", renderer), SDL_FLIP_HORIZONTAL};
+    // Carregar texturas para o jogador e configurar dados da animação
+    struct Personagem player = {
+        10, groundY - 128, 0, 0, 1,
+        loadTexture("./assets/player/idle2.bmp", renderer),
+        loadTexture("./assets/player/run.bmp", renderer),
+        loadTexture("./assets/player/jump.bmp", renderer),
+        NULL, SDL_FLIP_NONE, 128, 128, 0, 6, 8, 4, 0
+    };
+    player.currentTexture = player.textureIdle2;
 
     while (1) {
         SDL_GetWindowSize(window, &windowWidth, &windowHeight);
-        personagemLargura = windowWidth / 10;
-        personagemAltura = windowHeight / 6;
 
         SDL_RenderClear(renderer);
 
         // Escolhe a textura de fundo com base no estado de tela cheia
-        SDL_Texture* backgroundTexture;
-        if (isFullscreen) {
-            backgroundTexture = backgroundTextureFullscreen;
-        } else {
-            backgroundTexture = backgroundTextureNormal;
-        }
+        SDL_Texture* backgroundTexture = isFullscreen ? backgroundTextureFullscreen : backgroundTextureNormal;
 
-        // desenha o fundo
+        // Desenha o fundo
         SDL_Rect bgRect = { 0, groundY, windowWidth, windowHeight - groundY };
         SDL_RenderCopy(renderer, backgroundTexture, NULL, &bgRect);
 
+        // Atualiza a posição e animação do personagem
         updatePlayerPosition(&player, groundY);
-        drawBitmap(&player, personagemLargura, personagemAltura, renderer);
+        updateAnimation(&player);
+        drawCharacter(&player, renderer);
 
         SDL_RenderPresent(renderer);
 
@@ -123,7 +166,9 @@ int main(int argc, char* argv[]) {
             if (event.type == SDL_QUIT) {
                 SDL_DestroyTexture(backgroundTextureNormal);
                 SDL_DestroyTexture(backgroundTextureFullscreen);
-                SDL_DestroyTexture(player.texture);
+                SDL_DestroyTexture(player.textureIdle2);
+                SDL_DestroyTexture(player.textureRun);
+                SDL_DestroyTexture(player.textureJump);
                 SDL_DestroyRenderer(renderer);
                 SDL_DestroyWindow(window);
                 SDL_Quit();
@@ -135,17 +180,13 @@ int main(int argc, char* argv[]) {
             }
             if (event.type == SDL_KEYUP) {
                 input = event.key.keysym.sym;
-                if (input == SDLK_a || input == SDLK_d) {
-                    player.velocityX = 0;
-                }
+                handleKeyUp(&player, input);
             }
             if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_f) {
-                isFullscreen = !isFullscreen; // alterna o estado
-                if (isFullscreen) {
-                    SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-                } else {
-                    SDL_SetWindowFullscreen(window, 0);
-                    SDL_SetWindowSize(window, fixedWindowWidth, fixedWindowHeight); // restaura o tamanho fixo da janela
+                isFullscreen = !isFullscreen;
+                SDL_SetWindowFullscreen(window, isFullscreen ? SDL_WINDOW_FULLSCREEN : 0);
+                if (!isFullscreen) {
+                    SDL_SetWindowSize(window, fixedWindowWidth, fixedWindowHeight);
                 }            
             }
         }
@@ -158,5 +199,4 @@ int main(int argc, char* argv[]) {
     SDL_DestroyWindow(window);
     SDL_Quit();
 
-    return 0;
 }
