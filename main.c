@@ -5,25 +5,29 @@
 #define GRAVIDADE 2
 #define PULO_ALTURA 10
 
-// gcc -I/usr/local/include/SDL2 ./main.c -o test.exe -L/usr/local/lib -lSDL2
-// gcc -o teste main.c -lSDL2
-// gcc main.c -o test_sdl2 -I/opt/homebrew/include -L/opt/homebrew/lib -lSDL2 -mmacosx-version-min=15.0
-
 struct Personagem {
-    int x, y;                   // posição do personagem na tela
-    int velocityX, velocityY;   // velocidade horizontal e vertical
-    int onGround;               // indicador de se está no chão ou pulando
-    SDL_Texture* textureIdle2;   // textura idle do personagem (imagem)
-    SDL_Texture* textureRun;    // textura de corrida do personagem (imagem)
-    SDL_Texture* textureJump;   // textura de pulo do personagem (imagem)
-    SDL_Texture* currentTexture; // textura atual do personagem
-    SDL_RendererFlip flip;      // orientação do personagem (esquerda ou direita)  
-    int frameWidth, frameHeight; // largura e altura de cada quadro no spritesheet
-    int currentFrame;           // quadro atual da animação
-    int totalFramesIdle2;        // número total de quadros da animação idle
-    int totalFramesRun;         // número total de quadros da animação de corrida
-    int totalFramesJump;        // número total de quadros da animação de pulo
-    Uint32 lastFrameTime;       // tempo do último quadro
+    int x, y;
+    int velocityX, velocityY;
+    int onGround;
+    SDL_Texture* textureIdle2;
+    SDL_Texture* textureRun;
+    SDL_Texture* textureJump;
+    SDL_Texture* currentTexture;
+    SDL_RendererFlip flip;
+    int frameWidth, frameHeight;
+    int currentFrame;
+    int totalFramesIdle2;
+    int totalFramesRun;
+    int totalFramesJump;
+    Uint32 lastFrameTime;
+};
+
+struct Zumbi {
+    int x, y;
+    int velocityX, velocityY;
+    int onGround;
+    SDL_Texture* texture;
+    SDL_RendererFlip flip;
 };
 
 // Função para carregar uma textura a partir de um arquivo BMP
@@ -45,36 +49,41 @@ void drawCharacter(struct Personagem* personagem, SDL_Renderer* renderer) {
     SDL_RenderCopyEx(renderer, personagem->currentTexture, &srcRect, &destRect, 0, NULL, personagem->flip);
 }
 
+// Função para desenhar o zumbi na tela
+void drawZombie(struct Zumbi* zumbi, SDL_Renderer* renderer) {
+    SDL_Rect destRect = { zumbi->x, zumbi->y, 64, 64 }; // Dimensão do zumbi
+    SDL_RenderCopyEx(renderer, zumbi->texture, NULL, &destRect, 0, NULL, zumbi->flip);
+}
+
 // Função para lidar com entrada de movimento e pulo
 void handleInput(struct Personagem* player, int input) {
     if (input == SDLK_w && player->onGround) {
         player->velocityY = -PULO_ALTURA;
-        player->currentTexture = player->textureJump; // Trocar para textura de pulo
-        player->currentFrame = 0; // Reiniciar a animação de pulo
+        player->currentTexture = player->textureJump;
+        player->currentFrame = 0;
         player->onGround = 0;
     }
     if (input == SDLK_d) {
         player->velocityX = 10;
-        player->flip = SDL_FLIP_NONE; // Olhar para direita
+        player->flip = SDL_FLIP_NONE;
         if (player->onGround) {
-            player->currentTexture = player->textureRun; // Trocar para textura de corrida se no chão
+            player->currentTexture = player->textureRun;
         }
     }
     if (input == SDLK_a) {
         player->velocityX = -10;
-        player->flip = SDL_FLIP_HORIZONTAL; // Olhar para esquerda
+        player->flip = SDL_FLIP_HORIZONTAL;
         if (player->onGround) {
-            player->currentTexture = player->textureRun; // Trocar para textura de corrida se no chão
+            player->currentTexture = player->textureRun;
         }
     }
 }
 
-// Função para parar a animação de corrida ao soltar as teclas de movimento
 void handleKeyUp(struct Personagem* player, int input) {
     if (input == SDLK_a || input == SDLK_d) {
         player->velocityX = 0;
         if (player->onGround) {
-            player->currentTexture = player->textureIdle2; // Voltar para textura de idle
+            player->currentTexture = player->textureIdle2;
             player->totalFramesIdle2 = 5;
         }
     }
@@ -83,11 +92,9 @@ void handleKeyUp(struct Personagem* player, int input) {
 // Função para atualizar a posição do personagem e aplicar a gravidade
 void updatePlayerPosition(struct Personagem* personagem, int groundY) {
     personagem->x += personagem->velocityX;
-
     if (!personagem->onGround) { 
         personagem->velocityY += GRAVIDADE;
         personagem->y += personagem->velocityY;
-
         if (personagem->y >= groundY - personagem->frameHeight) {
             personagem->y = groundY - personagem->frameHeight;
             personagem->onGround = 1;
@@ -99,6 +106,26 @@ void updatePlayerPosition(struct Personagem* personagem, int groundY) {
             }
         }
     }
+}
+
+// Função para atualizar a posição do zumbi com base na posição do jogador
+void updateZombiePosition(struct Zumbi* zumbi, struct Personagem* player, int groundY) {
+    // Define a posição fixa do chão para o zumbi
+    zumbi->y = groundY - 64;  // Mantém o zumbi no chão
+
+    // Ajusta a direção do zumbi para seguir o jogador
+    if (zumbi->x < player->x) {
+        zumbi->velocityX = 3;
+        zumbi->flip = SDL_FLIP_NONE;
+    } else if (zumbi->x > player->x) {
+        zumbi->velocityX = -3;
+        zumbi->flip = SDL_FLIP_HORIZONTAL;
+    } else {
+        zumbi->velocityX = 0;
+    }
+
+    // Atualiza a posição horizontal do zumbi
+    zumbi->x += zumbi->velocityX;
 }
 
 // Função para atualizar o quadro atual da animação
@@ -127,17 +154,13 @@ int main(int argc, char* argv[]) {
 
     SDL_Window* window = SDL_CreateWindow("Pitfall: Rise Of Dead", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    
-    // Carregar diferentes texturas de fundo
-    SDL_Texture* backgroundTextureNormal = loadTexture("./assets/map/forest-ground.bmp", renderer);
-    SDL_Texture* backgroundTextureFullscreen = loadTexture("./assets/map/forest-groundG.bmp", renderer);
 
-    // Definir groundY como 80% da altura da janela
+    SDL_Texture* backgroundTextureNormal = loadTexture("./assets/map/forest-ground.bmp", renderer);
+
     int groundY = (int)(windowHeight * 0.8);
 
-    // Carregar texturas para o jogador e configurar dados da animação
     struct Personagem player = {
-        10, groundY - 128, 0, 0, 1,
+        100, groundY - 128, 0, 0, 1,
         loadTexture("./assets/player/idle2.bmp", renderer),
         loadTexture("./assets/player/run.bmp", renderer),
         loadTexture("./assets/player/jump.bmp", renderer),
@@ -145,22 +168,26 @@ int main(int argc, char* argv[]) {
     };
     player.currentTexture = player.textureIdle2;
 
+    struct Zumbi zumbi = {
+        10, groundY - 128, 0, 0, 1,
+        loadTexture("./assets/zombie-h/zombie-solo.bmp", renderer),
+        SDL_FLIP_NONE
+    };
+
     while (1) {
         SDL_GetWindowSize(window, &windowWidth, &windowHeight);
 
         SDL_RenderClear(renderer);
 
-        // Escolhe a textura de fundo com base no estado de tela cheia
-        SDL_Texture* backgroundTexture = isFullscreen ? backgroundTextureFullscreen : backgroundTextureNormal;
-
-        // Desenha o fundo
         SDL_Rect bgRect = { 0, groundY, windowWidth, windowHeight - groundY };
-        SDL_RenderCopy(renderer, backgroundTexture, NULL, &bgRect);
+        SDL_RenderCopy(renderer, backgroundTextureNormal, NULL, &bgRect);
 
-        // Atualiza a posição e animação do personagem
         updatePlayerPosition(&player, groundY);
         updateAnimation(&player);
         drawCharacter(&player, renderer);
+
+        updateZombiePosition(&zumbi, &player, groundY);
+        drawZombie(&zumbi, renderer);
 
         SDL_RenderPresent(renderer);
 
@@ -168,10 +195,10 @@ int main(int argc, char* argv[]) {
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
                 SDL_DestroyTexture(backgroundTextureNormal);
-                SDL_DestroyTexture(backgroundTextureFullscreen);
                 SDL_DestroyTexture(player.textureIdle2);
                 SDL_DestroyTexture(player.textureRun);
                 SDL_DestroyTexture(player.textureJump);
+                SDL_DestroyTexture(zumbi.texture);
                 SDL_DestroyRenderer(renderer);
                 SDL_DestroyWindow(window);
                 SDL_Quit();
@@ -185,21 +212,7 @@ int main(int argc, char* argv[]) {
                 input = event.key.keysym.sym;
                 handleKeyUp(&player, input);
             }
-            if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_f) {
-                isFullscreen = !isFullscreen;
-                SDL_SetWindowFullscreen(window, isFullscreen ? SDL_WINDOW_FULLSCREEN : 0);
-                if (!isFullscreen) {
-                    SDL_SetWindowSize(window, fixedWindowWidth, fixedWindowHeight);
-                }            
-            }
         }
         SDL_Delay(16);
     }
-
-    SDL_DestroyTexture(backgroundTextureNormal);
-    SDL_DestroyTexture(backgroundTextureFullscreen);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-
 }
