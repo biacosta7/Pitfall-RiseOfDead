@@ -6,6 +6,7 @@
 #define PULO_ALTURA 10
 
 // gcc -I/usr/local/include/SDL2 ./main.c -o test.exe -L/usr/local/lib -lSDL2
+// gcc -o teste main.c -lSDL2
 // gcc main.c -o test_sdl2 -I/opt/homebrew/include -L/opt/homebrew/lib -lSDL2 -mmacosx-version-min=15.0
 
 struct Personagem {
