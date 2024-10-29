@@ -3,7 +3,11 @@
 
 #define FRAME_DELAY 150
 #define GRAVIDADE 2
-#define PULO_ALTURA 10
+#define PULO_ALTURA 20
+
+// gcc -I/usr/local/include/SDL2 ./main.c -o test.exe -L/usr/local/lib -lSDL2
+// gcc -o teste main.c -lSDL2
+// gcc main.c -o test_sdl2 -I/opt/homebrew/include -L/opt/homebrew/lib -lSDL2 -mmacosx-version-min=15.0
 
 struct Personagem {
     int x, y;
@@ -115,41 +119,62 @@ void updatePlayerPosition(struct Personagem* personagem, int groundY) {
         }
     }
 }
-// Função para atualizar a posição do zumbi com base na posição do jogador
+// função para atualizar a posição do zumbi com base na posição do jogador
 void updateZombiePosition(struct Zumbi* zumbi, struct Personagem* player, int groundY) {
     zumbi->y = groundY - zumbi->frameHeight;
 
     if (zumbi->x < player->x) {
         zumbi->velocityX = 1;
         zumbi->flip = SDL_FLIP_NONE;
-        zumbi->currentTexture = zumbi->textureRun;  // Altere para a textura de corrida
+        zumbi->currentTexture = zumbi->textureRun;  // altere para a textura de corrida
     } else if (zumbi->x > player->x) {
         zumbi->velocityX = -1;
         zumbi->flip = SDL_FLIP_HORIZONTAL;
-        zumbi->currentTexture = zumbi->textureRun;  // Altere para a textura de corrida
+        zumbi->currentTexture = zumbi->textureRun;  // altere para a textura de corrida
     } else {
         zumbi->velocityX = 0;
-        zumbi->currentTexture = zumbi->textureIdle;  // Altere para a textura parada
+        zumbi->currentTexture = zumbi->textureIdle;  // altere para a textura parada
     }
 
-    // Atualize a posição do zumbi
-    zumbi->x += zumbi->velocityX;
+    zumbi->x += zumbi->velocityX; // atualize a posição do zumbi
 }
-// Função para atualizar o quadro atual da animação
+
+// função para atualizar o quadro atual da animação
 void updateAnimation(struct Personagem* personagem) {
+    // verifica se o tempo para trocar de frame foi atingido
     if (SDL_GetTicks() - personagem->lastFrameTime > FRAME_DELAY) {
-        personagem->lastFrameTime = SDL_GetTicks();
-        int totalFrames = personagem->currentTexture == personagem->textureRun ? personagem->totalFramesRun :
-                          (personagem->currentTexture == personagem->textureJump ? personagem->totalFramesJump : personagem->totalFramesIdle2);
-        personagem->currentFrame = (personagem->currentFrame + 1) % totalFrames;
+        personagem->lastFrameTime = SDL_GetTicks(); // atualiza o tempo do último frame
+        
+        int totalFrames;
+        
+        // verifica qual é a textura atual e define o número de frames correspondente
+        if (personagem->currentTexture == personagem->textureRun) {
+            totalFrames = personagem->totalFramesRun;
+        } else if (personagem->currentTexture == personagem->textureJump) {
+            totalFrames = personagem->totalFramesJump;
+        } else {
+            totalFrames = personagem->totalFramesIdle2;
+        }
+        
+        personagem->currentFrame = (personagem->currentFrame + 1) % totalFrames; // atualiza o frame atual do personagem
     }
 }
 
 void updateAnimationZombie(struct Zumbi* zumbi){
+    // verifica se o tempo para trocar de frame foi atingido
     if (SDL_GetTicks() - zumbi->lastFrameTime > FRAME_DELAY) {
-        zumbi->lastFrameTime = SDL_GetTicks();
-        int totalFrames = zumbi->currentTexture == zumbi->textureRun ? zumbi->totalFramesRun : zumbi->totalFramesIdle;
-        zumbi->currentFrame = (zumbi->currentFrame + 1) % totalFrames;
+        zumbi->lastFrameTime = SDL_GetTicks(); // atualiza o tempo do último frame
+        
+        int totalFrames;
+        
+        // verifica se a textura atual é de corrida ou parado
+        if (zumbi->currentTexture == zumbi->textureRun) {
+            totalFrames = zumbi->totalFramesRun;
+        } else {
+            totalFrames = zumbi->totalFramesIdle;
+        }
+        
+        zumbi->currentFrame = (zumbi->currentFrame + 1) % totalFrames; // atualiza o frame atual do zumbi
     }
 }
 
@@ -187,7 +212,7 @@ int main(int argc, char* argv[]) {
         10, groundY - 128, 0, 0, 1,
         loadTexture("./assets/zombie/Idle.bmp", renderer),
         loadTexture("./assets/zombie/Run.bmp", renderer),
-        NULL, SDL_FLIP_NONE, 128, 128, 0, 4, 8
+        NULL, SDL_FLIP_NONE, 96, 96, 0, 4, 8
     };
     zumbi.currentTexture = zumbi.textureIdle;
     while (1) {
