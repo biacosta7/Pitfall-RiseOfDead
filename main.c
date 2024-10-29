@@ -49,6 +49,7 @@ SDL_Texture* loadTexture(const char* filePath, SDL_Renderer* renderer) {
         return NULL;
     }
     SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+    
     SDL_FreeSurface(surface);
     return texture;
 }
@@ -195,7 +196,15 @@ int main(int argc, char* argv[]) {
     SDL_Window* window = SDL_CreateWindow("Pitfall: Rise Of Dead", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    SDL_Texture* backgroundTextureNormal = loadTexture("./assets/map/forest-ground.bmp", renderer);
+    // Carrega os layers do fundo parallax
+    SDL_Texture* layer2 = loadTexture("./assets/map/layers/Layer2.bmp", renderer);
+    SDL_Texture* layer3 = loadTexture("./assets/map/layers/Layer3.bmp", renderer);
+    SDL_Texture* layer4 = loadTexture("./assets/map/layers/Layer4.bmp", renderer);
+    SDL_Texture* layer5 = loadTexture("./assets/map/layers/Layer5.bmp", renderer);
+    SDL_Texture* layer6 = loadTexture("./assets/map/layers/Layer6.bmp", renderer);
+    SDL_Texture* layer7 = loadTexture("./assets/map/layers/Layer7.bmp", renderer);
+    SDL_Texture* layer8 = loadTexture("./assets/map/layers/Layer8.bmp", renderer);
+    SDL_Texture* layer9 = loadTexture("./assets/map/layers/Layer9.bmp", renderer);
 
     int groundY = (int)(windowHeight * 0.8);
 
@@ -220,8 +229,16 @@ int main(int argc, char* argv[]) {
 
         SDL_RenderClear(renderer);
 
-        SDL_Rect bgRect = { 0, groundY, windowWidth, windowHeight - groundY };
-        SDL_RenderCopy(renderer, backgroundTextureNormal, NULL, &bgRect);
+        // Renderiza os layers de fundo com efeito parallax
+        SDL_Rect layerRect = { 0, 0, windowWidth, windowHeight };
+        SDL_RenderCopy(renderer, layer2, NULL, &layerRect);
+        SDL_RenderCopy(renderer, layer3, NULL, &layerRect);
+        SDL_RenderCopy(renderer, layer4, NULL, &layerRect);
+        SDL_RenderCopy(renderer, layer5, NULL, &layerRect);
+        SDL_RenderCopy(renderer, layer6, NULL, &layerRect);
+        SDL_RenderCopy(renderer, layer7, NULL, &layerRect);
+        SDL_RenderCopy(renderer, layer8, NULL, &layerRect);
+        SDL_RenderCopy(renderer, layer9, NULL, &layerRect);
 
         updatePlayerPosition(&player, groundY);
         updateAnimation(&player);
@@ -236,8 +253,16 @@ int main(int argc, char* argv[]) {
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
-                SDL_DestroyTexture(backgroundTextureNormal);
-                SDL_DestroyTexture(player.textureIdle2);
+                SDL_DestroyTexture(layer2);
+                SDL_DestroyTexture(layer3);
+                SDL_DestroyTexture(layer4);
+                SDL_DestroyTexture(layer5);
+                SDL_DestroyTexture(layer6);
+                SDL_DestroyTexture(layer7);
+                SDL_DestroyTexture(layer8);
+                SDL_DestroyTexture(layer9);
+
+                SDL_DestroyTexture(player.textureIdle2);        
                 SDL_DestroyTexture(player.textureRun);
                 SDL_DestroyTexture(player.textureJump);
                 SDL_DestroyTexture(zumbi.textureIdle);
