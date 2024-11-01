@@ -62,8 +62,8 @@ void renderBackground(SDL_Renderer* renderer, SDL_Texture* bgTexture, int bgX) {
     SDL_Rect destRect = {bgX, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
 
     SDL_RenderCopy(renderer, bgTexture, &srcRect, &destRect);
-    
-    // Para o fundo que precisa se repetir, renderize novamente
+
+    // Renderiza o fundo repetido
     destRect.x = bgX + SCREEN_WIDTH; // posição para a próxima parte do fundo
     SDL_RenderCopy(renderer, bgTexture, &srcRect, &destRect);
 }
@@ -135,9 +135,14 @@ void updatePlayerPosition(struct Personagem* personagem, int groundY) {
     }
 }
 
-void updateBackgroundPosition(int* backgroundX, struct Personagem* player, int parallaxSpeed) {
+void updateBackgroundPosition(int* backgroundX, struct Personagem* player, float parallaxSpeed) {
     // Calcula a nova posição do fundo baseado na posição do jogador
-    *backgroundX = (SCREEN_WIDTH / 2) - player->x;
+    *backgroundX -= player->velocityX * parallaxSpeed; // Move o fundo em função da velocidade do jogador
+
+    // Reposiciona o fundo se sair da tela
+    if (*backgroundX <= -SCREEN_WIDTH) {
+        *backgroundX = 0; // Reseta a posição do fundo para criar o efeito de repetição
+    }
 }
 
 // função para atualizar a posição do zumbi com base na posição do jogador
@@ -247,8 +252,8 @@ int main(int argc, char* argv[]) {
 
         playerPositionX += player.velocityX; // atualize a posição do jogador com base na velocidade
 
+        updateBackgroundPosition(&bgX, &player, 0.6f);
         renderBackground(renderer, bgTexture, bgX);
-        updateBackgroundPosition(&bgX, &player, 3);
 
         updatePlayerPosition(&player, groundY);
         updateAnimation(&player);
