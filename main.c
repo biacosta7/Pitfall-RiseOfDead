@@ -57,6 +57,13 @@ SDL_Texture* loadTexture(const char* filePath, SDL_Renderer* renderer) {
 }
 
 void renderBackground(SDL_Renderer* renderer, SDL_Texture* bgTexture, int bgX) {
+    // Renderiza tela preta se o fundo estiver fora da tela
+    if (bgX <= 0) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255); // Define a cor preta
+        SDL_Rect blackRect = { 0, 0, SCREEN_WIDTH, SCREEN_HEIGHT };
+        SDL_RenderFillRect(renderer, &blackRect); // Desenha o retângulo preto
+    }
+
     // Renderiza o fundo
     SDL_Rect srcRect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
     SDL_Rect destRect = {bgX, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
@@ -117,8 +124,14 @@ void handleKeyUp(struct Personagem* player, int input) {
 }
 
 // atualiza a posição do personagem e aplicar a gravidade
-void updatePlayerPosition(struct Personagem* personagem, int groundY) {
+void updatePlayerPosition(struct Personagem* personagem, int groundY, int bgX) {
     personagem->x += personagem->velocityX;
+
+    // Impede que o personagem ultrapasse o limite do fundo
+    if (personagem->x < -bgX) {
+        personagem->x = -bgX; // Limita a posição do jogador ao limite do fundo
+    }
+
     if (!personagem->onGround) { 
         personagem->velocityY += GRAVIDADE;
         personagem->y += personagem->velocityY;
@@ -136,12 +149,15 @@ void updatePlayerPosition(struct Personagem* personagem, int groundY) {
 }
 
 void updateBackgroundPosition(int* backgroundX, struct Personagem* player, float parallaxSpeed) {
-    // Calcula a nova posição do fundo baseado na posição do jogador
-    *backgroundX -= player->velocityX * parallaxSpeed; // Move o fundo em função da velocidade do jogador
+    *backgroundX -= player->velocityX * parallaxSpeed;
 
-    // Reposiciona o fundo se sair da tela
+    if (*backgroundX > 0) {
+        *backgroundX = 0;
+    }
+
+    // Reseta a posição do fundo para criar o efeito de repetição
     if (*backgroundX <= -SCREEN_WIDTH) {
-        *backgroundX = 0; // Reseta a posição do fundo para criar o efeito de repetição
+        *backgroundX += SCREEN_WIDTH;
     }
 }
 
@@ -252,15 +268,17 @@ int main(int argc, char* argv[]) {
 
         playerPositionX += player.velocityX; // atualize a posição do jogador com base na velocidade
 
-        updateBackgroundPosition(&bgX, &player, 0.6f);
-        renderBackground(renderer, bgTexture, bgX);
-
-        updatePlayerPosition(&player, groundY);
-        updateAnimation(&player);
-        drawCharacter(&player, renderer);
-
+        // Atualizações do jogo
+        updatePlayerPosition(&player, groundY, bgX);
         updateZombiePosition(&zumbi, &player, groundY);
+        updateBackgroundPosition(&bgX, &player, 0.6f);
+        updateAnimation(&player);
         updateAnimationZombie(&zumbi);
+
+        // Renderização
+        SDL_RenderClear(renderer);
+        renderBackground(renderer, bgTexture, bgX);
+        drawCharacter(&player, renderer);
         drawZombie(&zumbi, renderer);
 
         SDL_RenderPresent(renderer);
