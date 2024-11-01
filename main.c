@@ -4,6 +4,8 @@
 #define FRAME_DELAY 150
 #define GRAVIDADE 2
 #define PULO_ALTURA 20
+const int SCREEN_WIDTH = 800;
+const int SCREEN_HEIGHT = 400;
 
 // gcc -I/usr/local/include/SDL2 ./main.c -o test.exe -L/usr/local/lib -lSDL2
 // gcc -o teste main.c -lSDL2
@@ -54,6 +56,18 @@ SDL_Texture* loadTexture(const char* filePath, SDL_Renderer* renderer) {
     return texture;
 }
 
+void renderBackground(SDL_Renderer* renderer, SDL_Texture* bgTexture, int bgX) {
+    // Renderiza o fundo
+    SDL_Rect srcRect = {0, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+    SDL_Rect destRect = {bgX, 0, SCREEN_WIDTH, SCREEN_HEIGHT};
+
+    SDL_RenderCopy(renderer, bgTexture, &srcRect, &destRect);
+    
+    // Para o fundo que precisa se repetir, renderize novamente
+    destRect.x = bgX + SCREEN_WIDTH; // posição para a próxima parte do fundo
+    SDL_RenderCopy(renderer, bgTexture, &srcRect, &destRect);
+}
+
 // Função para desenhar o personagem na tela
 void drawCharacter(struct Personagem* personagem, SDL_Renderer* renderer) {
     SDL_Rect srcRect = { personagem->currentFrame * personagem->frameWidth, 0, personagem->frameWidth, personagem->frameHeight };
@@ -69,7 +83,7 @@ void drawZombie(struct Zumbi* zumbi, SDL_Renderer* renderer) {
 }
 
 // Função para lidar com entrada de movimento e pulo
-void handleInput(struct Personagem* player, int input) {
+void handleInput(struct Personagem* player, int input, int bgX) {
     if (input == SDLK_w && player->onGround) {
         player->velocityY = -PULO_ALTURA;
         player->currentTexture = player->textureJump;
@@ -120,6 +134,12 @@ void updatePlayerPosition(struct Personagem* personagem, int groundY) {
         }
     }
 }
+
+void updateBackgroundPosition(int* backgroundX, struct Personagem* player, int parallaxSpeed) {
+    // O fundo se move na direção oposta ao personagem
+    *backgroundX = -(player->x / parallaxSpeed); // Atualiza com base na posição do jogador
+}
+
 // função para atualizar a posição do zumbi com base na posição do jogador
 void updateZombiePosition(struct Zumbi* zumbi, struct Personagem* player, int groundY) {
     zumbi->y = groundY - zumbi->frameHeight;
@@ -182,29 +202,20 @@ void updateAnimationZombie(struct Zumbi* zumbi){
 int main(int argc, char* argv[]) {
     int input;
     int isFullscreen = 0;
+    int bgX = 0; // posição inicial do fundo
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0) {
         printf("Erro ao inicializar SDL: %s\n", SDL_GetError());
         return 1;
     }
 
-    const int fixedWindowWidth = 800;
-    const int fixedWindowHeight = 400;
-    int windowWidth = fixedWindowWidth;
-    int windowHeight = fixedWindowHeight;
+    int windowWidth = SCREEN_WIDTH;
+    int windowHeight = SCREEN_HEIGHT;
 
     SDL_Window* window = SDL_CreateWindow("Pitfall: Rise Of Dead", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    // Carrega os layers do fundo parallax
-    SDL_Texture* layer2 = loadTexture("./assets/map/layers/Layer2.bmp", renderer);
-    SDL_Texture* layer3 = loadTexture("./assets/map/layers/Layer3.bmp", renderer);
-    SDL_Texture* layer4 = loadTexture("./assets/map/layers/Layer4.bmp", renderer);
-    SDL_Texture* layer5 = loadTexture("./assets/map/layers/Layer5.bmp", renderer);
-    SDL_Texture* layer6 = loadTexture("./assets/map/layers/Layer6.bmp", renderer);
-    SDL_Texture* layer7 = loadTexture("./assets/map/layers/Layer7.bmp", renderer);
-    SDL_Texture* layer8 = loadTexture("./assets/map/layers/Layer8.bmp", renderer);
-    SDL_Texture* layer9 = loadTexture("./assets/map/layers/Layer9.bmp", renderer);
+    SDL_Texture* bgTexture = loadTexture( "./assets/map/layers/4.bmp", renderer);
 
     int groundY = (int)(windowHeight * 0.8);
 
@@ -229,16 +240,12 @@ int main(int argc, char* argv[]) {
 
         SDL_RenderClear(renderer);
 
-        // Renderiza os layers de fundo com efeito parallax
-        SDL_Rect layerRect = { 0, 0, windowWidth, windowHeight };
-        SDL_RenderCopy(renderer, layer2, NULL, &layerRect);
-        SDL_RenderCopy(renderer, layer3, NULL, &layerRect);
-        SDL_RenderCopy(renderer, layer4, NULL, &layerRect);
-        SDL_RenderCopy(renderer, layer5, NULL, &layerRect);
-        SDL_RenderCopy(renderer, layer6, NULL, &layerRect);
-        SDL_RenderCopy(renderer, layer7, NULL, &layerRect);
-        SDL_RenderCopy(renderer, layer8, NULL, &layerRect);
-        SDL_RenderCopy(renderer, layer9, NULL, &layerRect);
+        int playerPositionX = 0; 
+
+        playerPositionX += player.velocityX; // atualize a posição do jogador com base na velocidade
+
+        renderBackground(renderer, bgTexture, bgX);
+        updateBackgroundPosition(&bgX, &player, 10);
 
         updatePlayerPosition(&player, groundY);
         updateAnimation(&player);
@@ -251,17 +258,10 @@ int main(int argc, char* argv[]) {
         SDL_RenderPresent(renderer);
 
         SDL_Event event;
+
         while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) {
-                SDL_DestroyTexture(layer2);
-                SDL_DestroyTexture(layer3);
-                SDL_DestroyTexture(layer4);
-                SDL_DestroyTexture(layer5);
-                SDL_DestroyTexture(layer6);
-                SDL_DestroyTexture(layer7);
-                SDL_DestroyTexture(layer8);
-                SDL_DestroyTexture(layer9);
-
+                SDL_DestroyTexture(bgTexture);
                 SDL_DestroyTexture(player.textureIdle2);        
                 SDL_DestroyTexture(player.textureRun);
                 SDL_DestroyTexture(player.textureJump);
@@ -274,7 +274,7 @@ int main(int argc, char* argv[]) {
             }
             if (event.type == SDL_KEYDOWN) {
                 input = event.key.keysym.sym;
-                handleInput(&player, input);
+                handleInput(&player, input, bgX);
             }
             if (event.type == SDL_KEYUP) {
                 input = event.key.keysym.sym;
@@ -282,5 +282,7 @@ int main(int argc, char* argv[]) {
             }
         }
         SDL_Delay(16);
+
+        
     }
 }
