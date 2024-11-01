@@ -161,33 +161,40 @@ void updateBackgroundPosition(int* backgroundX, struct Personagem* player, float
     }
 }
 
-// função para atualizar a posição do zumbi com base na posição do jogador
+// função para atualizar a posição do zumbi com base na posição do player
 void updateZombiePosition(struct Zumbi* zumbi, struct Personagem* player, int groundY) {
     zumbi->y = groundY - zumbi->frameHeight;
 
-    int playerCenterX = SCREEN_WIDTH / 2; // posição central do jogador
+    int playerCenterX = SCREEN_WIDTH / 2; // posição central do player
 
-    // Distância mínima que o zumbi deve manter em relação ao jogador
-    int distance = 85 + (abs(player->velocityX) * 5); // aumenta a distância conforme a velocidade
+    // Define a distância mínima base
+    int distance = 85;
 
-    // Se o zumbi está à esquerda do jogador menos a distância, ele se move para a direita
+    // Aumenta a distância se o jogador estiver se movendo para a direita
+    if (player->velocityX > 0) {
+        distance += player->velocityX * 5;
+    } else if (player->velocityX < 0) { // Reduz a distância se o jogador estiver se movendo para a esquerda
+        distance = 85;
+    }
+    // Se o zumbi está à esquerda do player menos a distância, ele se move para a direita
     if (zumbi->x < playerCenterX - distance) {
         zumbi->velocityX = 1; // Move para a direita
         zumbi->flip = SDL_FLIP_NONE;
         zumbi->currentTexture = zumbi->textureRun; // textura de corrida
     }
-    // Se o zumbi está à direita do jogador mais a distância, ele se move para a esquerda
+    // Se o zumbi está à direita do player mais a distância, ele se move para a esquerda
     else if (zumbi->x > playerCenterX + distance) {
         zumbi->velocityX = -0.4f; // Move para a esquerda
         zumbi->flip = SDL_FLIP_HORIZONTAL;
         zumbi->currentTexture = zumbi->textureRun; 
     } 
-    // Se o zumbi está na faixa desejada em relação ao jogador, ele para
+    // Se o zumbi está na faixa desejada em relação ao player, ele para
     else {
-        if (player->velocityX != 0) { // Verifica se o jogador está se movendo
+        if (player->velocityX != 0 && distance != 85) { // player está se movendo pra direita
             zumbi->velocityX = -0.4f;
             zumbi->currentTexture = zumbi->textureRun;
-        } else { 
+        }
+        else { 
             zumbi->velocityX = 0; // Para
             zumbi->currentTexture = zumbi->textureIdle; 
         }
