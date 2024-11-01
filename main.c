@@ -71,7 +71,7 @@ void renderBackground(SDL_Renderer* renderer, SDL_Texture* bgTexture, int bgX) {
 // Função para desenhar o personagem na tela
 void drawCharacter(struct Personagem* personagem, SDL_Renderer* renderer) {
     SDL_Rect srcRect = { personagem->currentFrame * personagem->frameWidth, 0, personagem->frameWidth, personagem->frameHeight };
-    SDL_Rect destRect = { personagem->x, personagem->y, personagem->frameWidth, personagem->frameHeight };
+    SDL_Rect destRect = { (SCREEN_WIDTH / 2) - (personagem->frameWidth / 2), personagem->y, personagem->frameWidth, personagem->frameHeight }; // Centraliza o personagem
     SDL_RenderCopyEx(renderer, personagem->currentTexture, &srcRect, &destRect, 0, NULL, personagem->flip);
 }
 
@@ -136,8 +136,8 @@ void updatePlayerPosition(struct Personagem* personagem, int groundY) {
 }
 
 void updateBackgroundPosition(int* backgroundX, struct Personagem* player, int parallaxSpeed) {
-    // O fundo se move na direção oposta ao personagem
-    *backgroundX = -(player->x / parallaxSpeed); // Atualiza com base na posição do jogador
+    // Calcula a nova posição do fundo baseado na posição do jogador
+    *backgroundX = (SCREEN_WIDTH / 2) - player->x;
 }
 
 // função para atualizar a posição do zumbi com base na posição do jogador
@@ -220,13 +220,16 @@ int main(int argc, char* argv[]) {
     int groundY = (int)(windowHeight * 0.8);
 
     struct Personagem player = {
-        100, groundY - 128, 0, 0, 1,
+        0, groundY - 128, 0, 0, 1,
         loadTexture("./assets/player/idle2.bmp", renderer),
         loadTexture("./assets/player/run.bmp", renderer),
         loadTexture("./assets/player/jump.bmp", renderer),
         NULL, SDL_FLIP_NONE, 128, 128, 0, 6, 8, 4, 0
     };
     player.currentTexture = player.textureIdle2;
+    player.x = (SCREEN_WIDTH / 2) - (player.frameWidth / 2); // Mantém o personagem centralizado
+
+    player.y = groundY - player.frameHeight;
 
     struct Zumbi zumbi = {
         10, groundY - 128, 0, 0, 1,
@@ -245,7 +248,7 @@ int main(int argc, char* argv[]) {
         playerPositionX += player.velocityX; // atualize a posição do jogador com base na velocidade
 
         renderBackground(renderer, bgTexture, bgX);
-        updateBackgroundPosition(&bgX, &player, 10);
+        updateBackgroundPosition(&bgX, &player, 3);
 
         updatePlayerPosition(&player, groundY);
         updateAnimation(&player);
