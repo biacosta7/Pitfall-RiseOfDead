@@ -165,21 +165,50 @@ void updateBackgroundPosition(int* backgroundX, struct Personagem* player, float
 void updateZombiePosition(struct Zumbi* zumbi, struct Personagem* player, int groundY) {
     zumbi->y = groundY - zumbi->frameHeight;
 
-    if (zumbi->x < player->x) {
-        zumbi->velocityX = 1;
+    // Define a posição central do jogador
+    int playerCenterX = SCREEN_WIDTH / 2;
+
+    // Distância mínima que o zumbi deve manter em relação ao jogador
+    int distanceOffset = 100 + (player->velocityX * 1.5); // Distância aumenta conforme a velocidade do jogador
+
+    // Se o zumbi está à esquerda do jogador menos a distância, ele se move para a direita
+    if (zumbi->x < playerCenterX - distanceOffset) {
+        zumbi->velocityX = 1; // Move para a direita
         zumbi->flip = SDL_FLIP_NONE;
-        zumbi->currentTexture = zumbi->textureRun;  // altere para a textura de corrida
-    } else if (zumbi->x > player->x) {
-        zumbi->velocityX = -1;
+        zumbi->currentTexture = zumbi->textureRun; // textura de corrida
+    }
+    // Se o zumbi está à direita do jogador mais a distância, ele se move para a esquerda
+    else if (zumbi->x > playerCenterX + distanceOffset) {
+        zumbi->velocityX = -1; // Move para a esquerda
         zumbi->flip = SDL_FLIP_HORIZONTAL;
-        zumbi->currentTexture = zumbi->textureRun;  // altere para a textura de corrida
-    } else {
-        zumbi->velocityX = 0;
-        zumbi->currentTexture = zumbi->textureIdle;  // altere para a textura parada
+        zumbi->currentTexture = zumbi->textureRun; // textura de corrida
+    } 
+    // Se o zumbi está na faixa desejada em relação ao jogador, ele para
+    else {
+        zumbi->velocityX = 0; // Para
+
+        if (player->velocityX != 0){ // Verifica se o jogador está se movendo
+            zumbi->currentTexture = zumbi->textureRun;
+        }
+        else{ 
+            zumbi->currentTexture = zumbi->textureIdle; // textura parada
+        }
+    }
+    
+    // Atualiza a posição do zumbi com base na sua velocidade
+    zumbi->x += zumbi->velocityX;
+
+    // Impede que o zumbi ultrapasse a tela
+    if (zumbi->x < 0) {
+        zumbi->x = 0;
+    } else if (zumbi->x > SCREEN_WIDTH - zumbi->frameWidth) {
+        zumbi->x = SCREEN_WIDTH - zumbi->frameWidth;
     }
 
-    zumbi->x += zumbi->velocityX; // atualize a posição do zumbi
+    // Impressão para depuração
+    printf("Zumbi Position: %d, player->velocityX: %d, Player Center Position: %d, Distance Offset: %d\n", zumbi->x, player->velocityX, playerCenterX, distanceOffset);
 }
+
 
 // função para atualizar o quadro atual da animação
 void updateAnimation(struct Personagem* personagem) {
