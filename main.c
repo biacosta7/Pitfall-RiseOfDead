@@ -1,5 +1,6 @@
 #include <SDL2/SDL.h>
 #include <stdio.h>
+#include <math.h>
 
 #define FRAME_DELAY 150
 #define GRAVIDADE 2
@@ -267,7 +268,7 @@ int main(int argc, char* argv[]) {
     SDL_Window* window = SDL_CreateWindow("Pitfall: Rise Of Dead", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, windowWidth, windowHeight, SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
 
-    SDL_Texture* bgTexture = loadTexture( "./assets/map/layers/4.bmp", renderer);
+    SDL_Texture* bgTexture = loadTexture( "./assets/map/layers/forest-1.bmp", renderer);
 
     int groundY = (int)(windowHeight * 0.8);
 
