@@ -19,12 +19,14 @@ struct Personagem {
     SDL_Texture* textureIdle2;
     SDL_Texture* textureRun;
     SDL_Texture* textureJump;
+    SDL_Texture* textureattack;
     SDL_Texture* currentTexture;
     SDL_RendererFlip flip;
     int frameWidth, frameHeight;
     int currentFrame;
     int totalFramesIdle2;
     int totalFramesRun;
+    int totalFramesattack;
     int totalFramesJump;
     Uint32 lastFrameTime;
 };
@@ -98,6 +100,12 @@ void handleInput(struct Personagem* player, int input, int bgX) {
         player->currentFrame = 0;
         player->onGround = 0;
     }
+      if (input==SDLK_r) {
+        
+        player->currentTexture=player->textureattack;
+        player->totalFramesattack= 5;
+        }
+
     if (input == SDLK_d) {
         player->velocityX = 10;
         player->flip = SDL_FLIP_NONE;
@@ -182,6 +190,7 @@ void updateZombiePosition(struct Zumbi* zumbi, struct Personagem* player, int gr
         zumbi->velocityX = 1; // Move para a direita
         zumbi->flip = SDL_FLIP_NONE;
         zumbi->currentTexture = zumbi->textureRun; // textura de corrida
+        zumbi->totalFramesRun= 7;
     }
     // Se o zumbi está à direita do player mais a distância, ele se move para a esquerda
     else if (zumbi->x > playerCenterX + distance) {
@@ -226,6 +235,8 @@ void updateAnimation(struct Personagem* personagem) {
             totalFrames = personagem->totalFramesRun;
         } else if (personagem->currentTexture == personagem->textureJump) {
             totalFrames = personagem->totalFramesJump;
+        } else if (personagem->currentTexture == personagem->textureattack) {
+            totalFrames = personagem->totalFramesattack;
         } else {
             totalFrames = personagem->totalFramesIdle2;
         }
@@ -233,6 +244,7 @@ void updateAnimation(struct Personagem* personagem) {
         personagem->currentFrame = (personagem->currentFrame + 1) % totalFrames; // atualiza o frame atual do personagem
     }
 }
+
 
 void updateAnimationZombie(struct Zumbi* zumbi){
     // verifica se o tempo para trocar de frame foi atingido
@@ -277,6 +289,7 @@ int main(int argc, char* argv[]) {
         loadTexture("./assets/player/idle2.bmp", renderer),
         loadTexture("./assets/player/run.bmp", renderer),
         loadTexture("./assets/player/jump.bmp", renderer),
+        loadTexture("./assets/player/Attack_2.bmp", renderer),
         NULL, SDL_FLIP_NONE, 128, 128, 0, 6, 8, 4, 0
     };
     player.currentTexture = player.textureIdle2;
@@ -323,6 +336,7 @@ int main(int argc, char* argv[]) {
                 SDL_DestroyTexture(player.textureIdle2);        
                 SDL_DestroyTexture(player.textureRun);
                 SDL_DestroyTexture(player.textureJump);
+                SDL_DestroyTexture(player.textureattack);
                 SDL_DestroyTexture(zumbi.textureIdle);
                 SDL_DestroyTexture(zumbi.textureRun);
                 SDL_DestroyRenderer(renderer);
