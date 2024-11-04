@@ -1,0 +1,12 @@
+# Ignorar arquivos executáveis no Linux/macOS
+programa
+*.out
+
+# Ignorar arquivos executáveis no Windows
+*.exe
+
+# Ignorar arquivos objeto e intermediários da compilação
+*.o
+*.obj
+
+.DS_Store
