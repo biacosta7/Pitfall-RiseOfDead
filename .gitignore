@@ -1,12 +1,16 @@
-# Ignorar arquivos executáveis no Linux/macOS
+# Ignorar arquivos executáveis
 programa
+teste
+test
+main
 *.out
-
-# Ignorar arquivos executáveis no Windows
 *.exe
 
 # Ignorar arquivos objeto e intermediários da compilação
 *.o
 *.obj
 
+# Outros
 .DS_Store
+*.DS_Store
+.vscode
