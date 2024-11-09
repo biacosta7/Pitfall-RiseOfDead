@@ -7,13 +7,23 @@
 #define SCREEN_WIDTH 800
 #define LAYER_COUNT 3
 
+typedef enum { IDLE, RUNNING, JUMPING } PlayerState;
+
 // struct player
 typedef struct{
     Vector2 position;
     Vector2 size;
-    Color color;
     float velocityY; // velocidade vertical (para controlar o pulo)
     bool isJumping;
+    PlayerState state;
+    Texture2D idleTexture;
+    Texture2D runTexture;
+    Texture2D jumpTexture;
+    int frame;           // Frame atual da animação
+    float frameTime;     // Tempo entre frames
+    float currentFrameTime; // Acumulador de tempo
+    int maxFrames;       // Número de frames na spritesheet
+    bool flipRight; // controla a direção
 } Player;
 
 // struct enemy
@@ -84,9 +94,52 @@ void UpdateDrawParallax(BackgroundLayer *layers, int layerCount, float deltaTime
     }
 }
 
-// draw player e enemy
-void DrawPlayer(Player player){
-    DrawRectangleV(player.position, player.size, player.color);
+void UpdatePlayerAnimation(Player *player, float deltaTime) {
+    player->currentFrameTime += deltaTime;
+
+    // avança para o próximo frame se o tempo decorrido for suficiente
+    if (player->currentFrameTime >= player->frameTime) {
+        player->currentFrameTime = 0;
+        player->frame++;
+        
+        // volta para o primeiro frame ao atingir o último
+        if (player->frame >= player->maxFrames) {
+            player->frame = 0;
+        }
+    }
+}
+
+void DrawPlayer(Player player) {
+    Texture2D texture;
+    
+    switch (player.state) {
+        case RUNNING:
+            texture = player.runTexture;
+            break;
+        case JUMPING:
+            texture = player.jumpTexture;
+            break;
+        case IDLE:
+        default:
+            texture = player.idleTexture;
+            break;
+    }
+    
+    int frameWidth = texture.width / player.maxFrames;
+    
+    // define a área do frame atual na spritesheet
+    Rectangle sourceRect = { frameWidth * player.frame, 0, frameWidth, texture.height };
+
+    // inverte o `sourceRect.width` se `flipRight` for false
+    if (!player.flipRight) {
+        sourceRect.width = -frameWidth;
+    }
+
+    Rectangle destRect = { player.position.x, player.position.y, player.size.x * 6, player.size.y * 6 };
+    Vector2 origin = { 0, 0 };
+    
+    // desenha o frame atual da spritesheet, aplicando o flip horizontal se necessário
+    DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
 }
 
 void aplica_gravidade(Player *player, Enemy *enemy) {
@@ -96,7 +149,7 @@ void aplica_gravidade(Player *player, Enemy *enemy) {
     player->position.y += player->velocityY; // atualiza a posição com base na velocidade
     
     // verifica se o player atingiu o chão
-    float groundLevel = (SCREEN_HEIGHT) - player->size.y;
+    float groundLevel = (SCREEN_HEIGHT) - player->size.y * 5;
     if (player->position.y > groundLevel) {
         player->position.y = groundLevel;
         player->velocityY = 0; // para a velocidade quando o player chega no chão
@@ -142,10 +195,17 @@ int main(void){
     SetTargetFPS(60);
 
     // cria player
-    Player player = {0};
-    player.position = (Vector2){SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2};
-    player.size = (Vector2){20, 20};
-    player.color = RED;
+        Player player = {0};
+        player.position = (Vector2){SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2};
+        player.size = (Vector2){64, 64};
+        player.state = IDLE;
+        player.idleTexture = LoadTexture("assets/player/idle2.png");
+        player.runTexture = LoadTexture("assets/player/run.png");
+        player.jumpTexture = LoadTexture("assets/player/jump.png");
+        player.maxFrames = 5; // quantidade de frames de IDLE
+        player.frame = 0;
+        player.frameTime = 0.3f; // Tempo entre frames
+        player.currentFrameTime = 0.0f;
     
     // cria enemy
     Enemy enemy = {0};
@@ -163,16 +223,45 @@ int main(void){
         if (IsKeyPressed(KEY_W) && !player.isJumping) {
             player.velocityY = -10.0f; // velocidade de pulo inicial
             player.isJumping = true;
+            player.state = JUMPING;
+            player.frame = 0; // resetar para o primeiro frame de pulo
+            player.maxFrames = 8;
+            player.frameTime = 0.2f;
         }
         if (IsKeyDown(KEY_A)){
             player.position.x -= 1;
             movingHorizontal = true;
             movingLeft = true;
+            player.flipRight = false; // Vira para a esquerda
+
+            if (player.state != RUNNING) {
+                player.state = RUNNING;
+                player.frame = 0; // Reseta o frame ao entrar no estado RUNNING
+                player.maxFrames = 8;
+                player.frameTime = 0.1f;
+            }
+
         }
         if (IsKeyDown(KEY_D)){
             player.position.x += 1;
             movingHorizontal = true;
             movingLeft = false;
+            player.flipRight = true; // Vira para a direita
+
+            if (player.state != RUNNING) {
+                player.state = RUNNING;
+                player.frame = 0;
+                player.maxFrames = 8;
+                player.frameTime = 0.1f;
+            }
+        }
+        else if (!movingHorizontal && !player.isJumping) {
+            if (player.state != IDLE) {
+                player.state = IDLE;
+                player.frame = 0;
+                player.maxFrames = 5;
+                player.frameTime = 0.3f;
+            }
         }
 
         limitar_player(&player, screenWidth, screenHeight);
@@ -193,6 +282,7 @@ int main(void){
         aplica_gravidade(&player, &enemy);
         
         float deltaTime = GetFrameTime();
+        UpdatePlayerAnimation(&player, deltaTime);
 
         // draw the game
         BeginDrawing();
