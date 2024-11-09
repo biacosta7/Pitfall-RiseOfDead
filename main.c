@@ -7,7 +7,7 @@
 #define SCREEN_WIDTH 800
 #define LAYER_COUNT 3
 
-typedef enum { IDLE, RUNNING, JUMPING } PlayerState;
+typedef enum { IDLE, RUNNING, JUMPING } PersonagemState;
 
 // struct player
 typedef struct{
@@ -15,7 +15,7 @@ typedef struct{
     Vector2 size;
     float velocityY; // velocidade vertical (para controlar o pulo)
     bool isJumping;
-    PlayerState state;
+    PersonagemState state;
     Texture2D idleTexture;
     Texture2D runTexture;
     Texture2D jumpTexture;
@@ -32,6 +32,14 @@ typedef struct{
     Vector2 size;
     Color color;
     float velocityY;
+    PersonagemState state;
+    Texture2D idleTexture;
+    Texture2D runTexture;
+    int frame;           // Frame atual da animação
+    float frameTime;     // Tempo entre frames
+    float currentFrameTime; // Acumulador de tempo
+    int maxFrames;       // Número de frames na spritesheet
+    bool flipRight; // controla a direção
 } Enemy;
 
 typedef struct {
@@ -125,6 +133,9 @@ void DrawPlayer(Player player) {
             break;
     }
     
+    if (player.maxFrames <= 0) {
+        player.maxFrames = 1;  // Set a safe default
+    }
     int frameWidth = texture.width / player.maxFrames;
     
     // define a área do frame atual na spritesheet
@@ -141,6 +152,56 @@ void DrawPlayer(Player player) {
     // desenha o frame atual da spritesheet, aplicando o flip horizontal se necessário
     DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
 }
+
+void UpdateEnemyAnimation(Enemy *enemy, float deltaTime) {
+    enemy->currentFrameTime += deltaTime;
+
+    // avança para o próximo frame se o tempo decorrido for suficiente
+    if (enemy->currentFrameTime >= enemy->frameTime) {
+        enemy->currentFrameTime = 0;
+        enemy->frame++;
+        
+        // volta para o primeiro frame ao atingir o último
+        if (enemy->frame >= enemy->maxFrames) {
+            enemy->frame = 0;
+        }
+    }
+}
+
+void DrawEnemy(Enemy enemy) {
+    Texture2D texture;
+    
+    switch (enemy.state) {
+        case RUNNING:
+            texture = enemy.runTexture;
+            break;
+ 
+        case IDLE:
+        default:
+            texture = enemy.idleTexture;
+            break;
+    }
+
+    if (enemy.maxFrames <= 0) {
+        enemy.maxFrames = 1;  // Set a safe default
+    }
+    int frameWidth = texture.width / enemy.maxFrames;
+        
+    // define a área do frame atual na spritesheet
+    Rectangle sourceRect = { frameWidth * enemy.frame, 0, frameWidth, texture.height };
+
+    // inverte o `sourceRect.width` se `flipRight` for false
+    if (!enemy.flipRight) {
+        sourceRect.width = -frameWidth;
+    }
+
+    Rectangle destRect = { enemy.position.x, enemy.position.y, enemy.size.x * 6, enemy.size.y * 6 };
+    Vector2 origin = { 0, 0 };
+    
+    // desenha o frame atual da spritesheet, aplicando o flip horizontal se necessário
+    DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
+}
+
 
 void aplica_gravidade(Player *player, Enemy *enemy) {
     float gravidade = 0.5f;
@@ -195,26 +256,38 @@ int main(void){
     SetTargetFPS(60);
 
     // cria player
-        Player player = {0};
-        player.position = (Vector2){SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2};
-        player.size = (Vector2){64, 64};
-        player.state = IDLE;
-        player.idleTexture = LoadTexture("assets/player/idle2.png");
-        player.runTexture = LoadTexture("assets/player/run.png");
-        player.jumpTexture = LoadTexture("assets/player/jump.png");
-        player.maxFrames = 5; // quantidade de frames de IDLE
-        player.frame = 0;
-        player.frameTime = 0.3f; // Tempo entre frames
-        player.currentFrameTime = 0.0f;
+    Player player = {0};
+    player.position = (Vector2){(SCREEN_WIDTH / 2), SCREEN_HEIGHT / 2};
+    player.size = (Vector2){64, 64};
+    player.state = IDLE;
+    player.idleTexture = LoadTexture("assets/player/idle2.png");
+    player.runTexture = LoadTexture("assets/player/run.png");
+    player.jumpTexture = LoadTexture("assets/player/jump.png");
+    player.maxFrames = 5; // quantidade de frames de IDLE
+    player.frame = 0;
+    player.frameTime = 0.3f; // Tempo entre frames
+    player.currentFrameTime = 0.0f;
+    player.flipRight = true; 
+    player.velocityY = 0;    
     
     // cria enemy
     Enemy enemy = {0};
-    enemy.position = (Vector2){SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2};
-    enemy.size = (Vector2){20, 20};
-    enemy.color = BLUE;
+    enemy.position = (Vector2){0, screenHeight / 2};
+    enemy.size = (Vector2){64, 64};
+    enemy.state = IDLE;
+    enemy.idleTexture = LoadTexture("assets/zombie/Idle.png");
+    enemy.runTexture = LoadTexture("assets/zombie/run.png");
+    enemy.maxFrames = 7;
+    enemy.frame = 0;
+    enemy.frameTime = 0.3f;
+    enemy.currentFrameTime = 0.0f;
+    enemy.flipRight = true;
+    enemy.velocityY = 0;
     
     // game loop
     while (!WindowShouldClose()){
+
+        bool colidiu = CheckCollisionRecs((Rectangle){player.position.x, player.position.y, player.size.x, player.size.y}, (Rectangle){enemy.position.x, enemy.position.y, (enemy.size.x)+50, enemy.size.y});
 
         bool movingHorizontal = false;
         bool movingLeft = false;
@@ -268,35 +341,69 @@ int main(void){
 
         // inimigo seguindo o player
         if (player.position.x > enemy.position.x){
-            enemy.position.x += 0.3;
+            enemy.position.x += 0.5;
+            if (enemy.state != RUNNING) {
+                enemy.state = RUNNING;
+                enemy.frame = 0;
+                enemy.maxFrames = 7;
+                enemy.frameTime = 0.1f;
+            }
         } else if (player.position.x < enemy.position.x){
-            enemy.position.x -= 0.3;
-        }
+            enemy.position.x -= 0.5;
+            if (enemy.state != RUNNING) {
+                enemy.state = RUNNING;
+                enemy.frame = 0;
+                enemy.maxFrames = 7;
+                enemy.frameTime = 0.1f;
+            }
+        } else if(colidiu){
+            if (enemy.state != IDLE) {
+                enemy.state = IDLE;
+                enemy.frame = 0;
+                enemy.maxFrames = 8;
+                enemy.frameTime = 0.3f;
+            }
+        } else{
+            if (enemy.state != IDLE) {
+                enemy.state = IDLE;
+                enemy.frame = 0;
+                enemy.maxFrames = 8;
+                enemy.frameTime = 0.3f;
+            }
+        } 
 
-        if (player.position.y > enemy.position.y){
-            enemy.position.y += 0.3;
-        } else if(player.position.y < enemy.position.y){
-            enemy.position.y -= 0.3;
-        }
+        //zumbi nao pula
+        // if (player.position.y > enemy.position.y){
+        //     enemy.position.y += 0.3;
+        // } else if(player.position.y < enemy.position.y){
+        //     enemy.position.y -= 0.3;
+        // }
 
         aplica_gravidade(&player, &enemy);
         
         float deltaTime = GetFrameTime();
         UpdatePlayerAnimation(&player, deltaTime);
+        UpdateEnemyAnimation(&enemy, deltaTime);
 
         // draw the game
         BeginDrawing();
         ClearBackground(RAYWHITE);
-        UpdateDrawParallax(layers, LAYER_COUNT, deltaTime, screenWidth, screenHeight, movingHorizontal, movingLeft);
+        UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft);
+        DrawEnemy(enemy);
         DrawPlayer(player);
-        DrawRectangleV(enemy.position, enemy.size, enemy.color);
-        
-        if (CheckCollisionRecs((Rectangle){player.position.x, player.position.y, player.size.x, player.size.y}, (Rectangle){enemy.position.x, enemy.position.y, enemy.size.x, enemy.size.y})){
+
+        if (colidiu){
             DrawText("Game Over", screenWidth / 2 - 100, screenHeight / 2 - 50, 20, RED);
         }
         EndDrawing();
     }
     // unload texturas
+    UnloadTexture(player.idleTexture);
+    UnloadTexture(player.runTexture);
+    UnloadTexture(player.jumpTexture);
+    UnloadTexture(enemy.idleTexture);
+    UnloadTexture(enemy.runTexture);
+
     for (int i = 0; i < LAYER_COUNT; i++) {
         UnloadTexture(layers[i].texture);
     }
