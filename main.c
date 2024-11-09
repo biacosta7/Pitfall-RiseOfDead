@@ -7,7 +7,7 @@
 #define SCREEN_WIDTH 800
 #define LAYER_COUNT 3
 
-typedef enum { IDLE, RUNNING, JUMPING } PersonagemState;
+typedef enum { IDLE, RUNNING, JUMPING, ATTACK } PersonagemState;
 
 // struct player
 typedef struct{
@@ -19,6 +19,7 @@ typedef struct{
     Texture2D idleTexture;
     Texture2D runTexture;
     Texture2D jumpTexture;
+    Texture2D attackTexture;
     int frame;           // Frame atual da animação
     float frameTime;     // Tempo entre frames
     float currentFrameTime; // Acumulador de tempo
@@ -35,6 +36,7 @@ typedef struct{
     PersonagemState state;
     Texture2D idleTexture;
     Texture2D runTexture;
+    Texture2D attackTexture;
     int frame;           // Frame atual da animação
     float frameTime;     // Tempo entre frames
     float currentFrameTime; // Acumulador de tempo
@@ -127,6 +129,9 @@ void DrawPlayer(Player player) {
         case JUMPING:
             texture = player.jumpTexture;
             break;
+        case ATTACK:
+            texture = player.attackTexture;
+            break;
         case IDLE:
         default:
             texture = player.idleTexture;
@@ -175,7 +180,9 @@ void DrawEnemy(Enemy enemy) {
         case RUNNING:
             texture = enemy.runTexture;
             break;
- 
+        case ATTACK:
+            texture = enemy.attackTexture;
+            break;
         case IDLE:
         default:
             texture = enemy.idleTexture;
@@ -263,6 +270,7 @@ int main(void){
     player.idleTexture = LoadTexture("assets/player/idle2.png");
     player.runTexture = LoadTexture("assets/player/run.png");
     player.jumpTexture = LoadTexture("assets/player/jump.png");
+    player.attackTexture = LoadTexture("assets/player/attack.png");
     player.maxFrames = 5; // quantidade de frames de IDLE
     player.frame = 0;
     player.frameTime = 0.3f; // Tempo entre frames
@@ -277,6 +285,7 @@ int main(void){
     enemy.state = IDLE;
     enemy.idleTexture = LoadTexture("assets/zombie/Idle.png");
     enemy.runTexture = LoadTexture("assets/zombie/run.png");
+    enemy.attackTexture = LoadTexture("assets/zombie/attack.png");
     enemy.maxFrames = 7;
     enemy.frame = 0;
     enemy.frameTime = 0.3f;
@@ -287,7 +296,8 @@ int main(void){
     // game loop
     while (!WindowShouldClose()){
 
-        bool colidiu = CheckCollisionRecs((Rectangle){player.position.x, player.position.y, player.size.x, player.size.y}, (Rectangle){enemy.position.x, enemy.position.y, (enemy.size.x)+50, enemy.size.y});
+        bool colidiu = CheckCollisionRecs(
+            (Rectangle){player.position.x, player.position.y, ((player.size.x)*3)-25, ((player.size.y)*3)-25}, (Rectangle){enemy.position.x, enemy.position.y, ((enemy.size.x)*3)-25, enemy.size.y});
 
         bool movingHorizontal = false;
         bool movingLeft = false;
@@ -328,6 +338,14 @@ int main(void){
                 player.frameTime = 0.1f;
             }
         }
+        if (IsKeyDown(KEY_R)){
+            if (player.state != ATTACK) {
+                player.state = ATTACK;
+                player.frame = 0;
+                player.maxFrames = 5;
+                player.frameTime = 0.05f;
+            }
+        }
         else if (!movingHorizontal && !player.isJumping) {
             if (player.state != IDLE) {
                 player.state = IDLE;
@@ -340,7 +358,7 @@ int main(void){
         limitar_player(&player, screenWidth, screenHeight);
 
         // inimigo seguindo o player
-        if (player.position.x > enemy.position.x){
+        if (player.position.x > enemy.position.x && colidiu == false){
             enemy.position.x += 0.5;
             if (enemy.state != RUNNING) {
                 enemy.state = RUNNING;
@@ -348,7 +366,7 @@ int main(void){
                 enemy.maxFrames = 7;
                 enemy.frameTime = 0.1f;
             }
-        } else if (player.position.x < enemy.position.x){
+        } else if (player.position.x < enemy.position.x && colidiu == false){
             enemy.position.x -= 0.5;
             if (enemy.state != RUNNING) {
                 enemy.state = RUNNING;
@@ -357,27 +375,20 @@ int main(void){
                 enemy.frameTime = 0.1f;
             }
         } else if(colidiu){
-            if (enemy.state != IDLE) {
-                enemy.state = IDLE;
+            if (enemy.state != ATTACK) {
+                enemy.state = ATTACK;
                 enemy.frame = 0;
-                enemy.maxFrames = 8;
-                enemy.frameTime = 0.3f;
+                enemy.maxFrames = 4;
+                enemy.frameTime = 0.1f;
             }
-        } else{
-            if (enemy.state != IDLE) {
-                enemy.state = IDLE;
-                enemy.frame = 0;
-                enemy.maxFrames = 8;
-                enemy.frameTime = 0.3f;
-            }
-        } 
-
-        //zumbi nao pula
-        // if (player.position.y > enemy.position.y){
-        //     enemy.position.y += 0.3;
-        // } else if(player.position.y < enemy.position.y){
-        //     enemy.position.y -= 0.3;
-        // }
+        } //else if{
+        //     if (enemy.state != IDLE) {
+        //         enemy.state = IDLE;
+        //         enemy.frame = 0;
+        //         enemy.maxFrames = 8;
+        //         enemy.frameTime = 0.3f;
+        //     }
+        // } 
 
         aplica_gravidade(&player, &enemy);
         
