@@ -8,7 +8,19 @@
 #define LAYER_COUNT 3
 
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK } PersonagemState;
-
+typedef enum { START_SCREEN, GAMEPLAY } GameState;
+const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite\n" 
+                                "recrutou uma equipe de cientistas e após anos de pesquisa\n"
+                                "em um projeto secreto, criou uma arma biológica destinada\n"
+                                "à imortalidade, acreditando ser a única esperança para a\n"
+                                "sobrevivência humana. Porém, o experimento saiu do controle,\n"
+                                "transformando a maioria da população em zumbis. Você é um dos\n"
+                                "poucos que escaparam de uma tentativa de invasão a essa\n"
+                                "fortaleza, mas agora, na floresta densa, hordas de zumbis \n"
+                                "estão por toda parte. Para alcançar a segurança, você deve\n"
+                                "correr por perigosas áreas infestadas, coletar suprimentos.\n"
+                                "Sua meta é chegar a um abrigo subterrâneo, onde os últimos\n"
+                                "cientistas tentam criar uma vacina.\n";
 // struct player
 typedef struct{
     Vector2 position;
@@ -261,6 +273,7 @@ int main(void){
     };
 
     SetTargetFPS(60);
+    GameState gameState = START_SCREEN;
 
     // cria player
     Player player = {0};
@@ -399,12 +412,21 @@ int main(void){
         // draw the game
         BeginDrawing();
         ClearBackground(RAYWHITE);
-        UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft);
-        DrawEnemy(enemy);
-        DrawPlayer(player);
+        if(gameState == START_SCREEN){
+            DrawText("Pitfall: Rise of Dead", screenWidth / 2 - MeasureText("Pitfall: Rise of Dead", 20) / 2, screenHeight / 3 - 30, 20, BLACK);
+            DrawText(historiaDoJogo, screenWidth / 2 - MeasureText(historiaDoJogo, 20) / 2, screenHeight / 3 + 30, 20, BLACK);
+            if(IsKeyPressed(KEY_ENTER)){
+                gameState = GAMEPLAY;
+            }
+        }
+        else if(gameState == GAMEPLAY){
+            UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft);
+            DrawEnemy(enemy);
+            DrawPlayer(player);
 
-        if (colidiu){
-            DrawText("Game Over", screenWidth / 2 - 100, screenHeight / 2 - 50, 20, RED);
+            if (colidiu){
+                DrawText("Game Over", screenWidth / 2 - 100, screenHeight / 2 - 50, 20, RED);
+            }
         }
         EndDrawing();
     }
