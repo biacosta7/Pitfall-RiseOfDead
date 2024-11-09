@@ -112,6 +112,20 @@ void aplica_gravidade(Player *player, Enemy *enemy) {
     }
 }
 
+void limitar_player(Player *player, int screenWidth, int screenHeight) {
+    if (player->position.x < 0) {
+        player->position.x = 0;
+    }
+    if (player->position.x + player->size.x > screenWidth) {
+        player->position.x = screenWidth - player->size.x;
+    }
+    if (player->position.y < 0) {
+        player->position.y = 0;
+    }
+    if (player->position.y + player->size.y > screenHeight) {
+        player->position.y = screenHeight - player->size.y;
+    }
+}
 
 int main(void){
     // cria window
@@ -160,6 +174,8 @@ int main(void){
             movingHorizontal = true;
             movingLeft = false;
         }
+
+        limitar_player(&player, screenWidth, screenHeight);
 
         // inimigo seguindo o player
         if (player.position.x > enemy.position.x){
