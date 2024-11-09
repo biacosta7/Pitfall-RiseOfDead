@@ -53,14 +53,18 @@ void DrawBackground(Texture2D background, int screenWidth, int screenHeight) {
 }
 
 // atualiza o parallax
-void UpdateDrawParallax(BackgroundLayer *layers, int layerCount, float deltaTime, int screenWidth, int screenHeight, bool isMovingHorizontal) {
+void UpdateDrawParallax(BackgroundLayer *layers, int layerCount, float deltaTime, int screenWidth, int screenHeight, bool movingHorizontal, bool movingLeft) {
     for (int i = 0; i < layerCount; i++) {
         // escala com base na altura da tela
         float scale = (float)screenHeight / layers[i].texture.height;
 
         // atualiza a posição se o player estiver se movendo
-        if (isMovingHorizontal) {
-            layers[i].position.x -= layers[i].speed * deltaTime;
+        if (movingHorizontal) {
+            if (movingLeft) {
+                layers[i].position.x += layers[i].speed * deltaTime;
+            } else {
+                layers[i].position.x -= layers[i].speed * deltaTime;
+            }
         }
 
         // reseta a posição se a textura ultrapassar a tela
@@ -138,7 +142,8 @@ int main(void){
     // game loop
     while (!WindowShouldClose()){
 
-        bool isMovingHorizontal = false;
+        bool movingHorizontal = false;
+        bool movingLeft = false;
 
         // movimento player
         if (IsKeyPressed(KEY_W) && !player.isJumping) {
@@ -147,11 +152,13 @@ int main(void){
         }
         if (IsKeyDown(KEY_A)){
             player.position.x -= 1;
-            isMovingHorizontal = true;
+            movingHorizontal = true;
+            movingLeft = true;
         }
         if (IsKeyDown(KEY_D)){
             player.position.x += 1;
-            isMovingHorizontal = true;
+            movingHorizontal = true;
+            movingLeft = false;
         }
 
         // inimigo seguindo o player
@@ -174,7 +181,7 @@ int main(void){
         // draw the game
         BeginDrawing();
         ClearBackground(RAYWHITE);
-        UpdateDrawParallax(layers, LAYER_COUNT, deltaTime, screenWidth, screenHeight, isMovingHorizontal);
+        UpdateDrawParallax(layers, LAYER_COUNT, deltaTime, screenWidth, screenHeight, movingHorizontal, movingLeft);
         DrawPlayer(player);
         DrawRectangleV(enemy.position, enemy.size, enemy.color);
         
