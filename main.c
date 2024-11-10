@@ -6,6 +6,7 @@
 #define SCREEN_HEIGHT 600
 #define SCREEN_WIDTH 800
 #define LAYER_COUNT 3
+#define MAX_LIVES 3
 
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK } PersonagemState;
 typedef enum { START_SCREEN, GAMEPLAY } GameState;
@@ -39,6 +40,12 @@ typedef struct{
     float currentFrameTime; // Acumulador de tempo
     int maxFrames;       // Número de frames na spritesheet
     bool flipRight; // controla a direção
+    int lives;
+    Texture2D heartTexture3;
+    Texture2D heartTexture2;
+    Texture2D heartTexture1;
+    bool invencivel; //tempo de invencibilidade logo apos levar uma colisao
+    float invencibilidadeTimer; // tempo que dura a invencibilidade
 } Player;
 
 // struct enemy
@@ -85,27 +92,15 @@ void DrawBackground(Texture2D background, int screenWidth, int screenHeight) {
     // Draw the scaled background
     DrawTextureEx(background, (Vector2){offsetX, offsetY}, 0, scale, WHITE);
 }
-void DrawBackgroundWithOverlay(Texture2D background, int screenWidth, int screenHeight) {
-    float scale;
-    float offsetX = 0;
-    float offsetY = 0;
-
-    // Cálculo do fator de escala para cobrir a tela toda
-    float scaleX = (float)screenWidth / background.width;
-    float scaleY = (float)screenHeight / background.height;
-    
-    scale = (scaleX > scaleY) ? scaleX : scaleY;
-
-    if (background.width * scale > screenWidth)
-        offsetX = (screenWidth - (background.width * scale)) / 2;
-    if (background.height * scale > screenHeight)
-        offsetY = (screenHeight - (background.height * scale)) / 2;
-
-    DrawTextureEx(background, (Vector2){offsetX, offsetY}, 0, scale, WHITE);
-    
-    // Desenho do overlay semitransparente
-    Rectangle overlayRect = { 50, 100, screenWidth - 100, 300 }; // Ajuste conforme necessário
-    DrawRectangleRec(overlayRect, Fade(BLACK, 0.5f)); // Preto com 50% de transparência
+void DrawLives(Player player) {
+    Vector2 livesPosition = { 20, 20 }; // Posição fixa no canto superior esquerdo da tela
+    if (player.lives == 3) {
+        DrawTexture(player.heartTexture3, livesPosition.x, livesPosition.y, WHITE);
+    } else if (player.lives == 2) {
+        DrawTexture(player.heartTexture2, livesPosition.x, livesPosition.y, WHITE);
+    } else if (player.lives == 1) {
+        DrawTexture(player.heartTexture1, livesPosition.x, livesPosition.y, WHITE);
+    }
 }
 
 // atualiza o parallax
@@ -314,8 +309,13 @@ int main(void){
     player.frameTime = 0.3f; // Tempo entre frames
     player.currentFrameTime = 0.0f;
     player.flipRight = true; 
-    player.velocityY = 0;    
-    
+    player.velocityY = 0;  
+    player.lives = MAX_LIVES;  
+
+    player.heartTexture3 = LoadTexture("assets/Heart/Heart3.png");
+    player.heartTexture2 = LoadTexture("assets/Heart/Heart2.png");
+    player.heartTexture1 = LoadTexture("assets/Heart/Heart1.png");
+
     // cria enemy
     Enemy enemy = {0};
     enemy.position = (Vector2){0, screenHeight / 2};
@@ -439,9 +439,20 @@ int main(void){
         ClearBackground(RAYWHITE);
         if(gameState == START_SCREEN){
             BeginDrawing();
+            int posXtitulo = 420;
+            int postYtitulo = 40;
+            int posXhistoria = 155;
+            int posYhistoria = 150;
+            int fonttitulo = 40;
+            int fonthistoria = 30;
+            Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
+            // cor titulo = preto, cor historia = branco, cor comando = vermelho
+            Vector2 posTitulo = { 420, 40 };
+            Vector2 posHistoria = { 155, 150 };
+
             DrawBackground(backgroundTitle, screenWidth, screenHeight);
-            DrawText(tituloDoJogo, 420, 40, 40, BLACK); //posicao X, posicao Y, tamanho fonte, cor
-            DrawText(historiaDoJogo, 155, 150, 30, WHITE);
+            DrawTextEx(fontePersonalizada, tituloDoJogo, posTitulo, 40, 1, BLACK); //posicao X, posicao Y, tamanho fonte, cor
+            DrawTextEx(fontePersonalizada, historiaDoJogo, posHistoria, 30, 1, WHITE);
             DrawText("Pressione ENTER para iniciar a corrida!", 325, 600, 30, RED);
             if(IsKeyPressed(KEY_ENTER)){
                 gameState = GAMEPLAY;
@@ -451,10 +462,24 @@ int main(void){
             UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft);
             DrawEnemy(enemy);
             DrawPlayer(player);
-
-            if (colidiu){
-                DrawText("Game Over", screenWidth / 2 - 100, screenHeight / 2 - 50, 20, RED);
+            if (player.invencivel) {
+                player.invencibilidadeTimer -= GetFrameTime();
+                if (player.invencibilidadeTimer <= 0) {
+                    player.invencivel = false;  // Invencibilidade expirada
+                }
             }
+
+            if (colidiu && !player.invencivel) {
+                if (player.lives > 0) {
+                    player.lives--;
+                    player.invencivel = true;  // Ativa invencibilidade temporária
+                    player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
+                }
+                else if(player.lives == 0){
+                    DrawText("Game Over!", 600, 400, 40, RED);
+                }
+            }
+            DrawLives(player);
         }
         EndDrawing();
     }
