@@ -26,8 +26,13 @@ const char *tituloDoJogo = "Pitfall: Rise of Dead";
 Texture2D backgroundTitle;
 // struct player
 typedef struct{
-    Vector2 position;
-    Vector2 size;
+    int x;
+    int y;
+    int width;
+    int height;
+    //int direction;
+    //int speed;
+    //int jump_strength;
     float velocityY; // velocidade vertical (para controlar o pulo)
     bool isJumping;
     PersonagemState state;
@@ -71,27 +76,50 @@ typedef struct {
     float speed;
 } BackgroundLayer;
 
-void DrawBackground(Texture2D background, int screenWidth, int screenHeight) {
-    float scale;
-    float offsetX = 0;
-    float offsetY = 0;
+typedef enum {
+    PLATFORM,
+    FLOOR,
+} PlatformType;
 
-    // Calculate scaling factor to cover the entire screen
+typedef struct {
+    int x;
+    int y;
+    int width;
+    int height;
+    PlatformType type;
+    Texture2D texture;
+} Platform;
+
+void DrawBackground(Texture2D background, int screenWidth, int screenHeight, Camera2D camera) {
+    float scale;
+    float deslocamento_x = 0;
+    float deslocamento_y = 0;
+
+    // Calcular fator de escala para cobrir a tela inteira
     float scaleX = (float)screenWidth / background.width;
     float scaleY = (float)screenHeight / background.height;
     
-    // Use the larger scaling factor to ensure the image covers the entire screen
-    scale = (scaleX > scaleY) ? scaleX : scaleY;
+    // Escolher o maior fator de escala para garantir que a imagem cubra a tela
+    if (scaleX > scaleY) {
+        scale = scaleX;
+    } else {
+        scale = scaleY;
+    }
 
-    // Calculate offsets to center the image if it's larger than the screen
+    // Ajustar deslocamento para centralizar a imagem
     if (background.width * scale > screenWidth)
-        offsetX = (screenWidth - (background.width * scale)) / 2;
+        deslocamento_x = (screenWidth - (background.width * scale)) / 2;
     if (background.height * scale > screenHeight)
-        offsetY = (screenHeight - (background.height * scale)) / 2;
+        deslocamento_y = (screenHeight - (background.height * scale)) / 2;
 
-    // Draw the scaled background
-    DrawTextureEx(background, (Vector2){offsetX, offsetY}, 0, scale, WHITE);
+    // Aplicar o deslocamento da câmera para o efeito parallax
+    deslocamento_x += camera.offset.x * 0.1f; 
+    deslocamento_y += camera.offset.y * 0.1f;
+
+    // Desenhar o background escalado
+    DrawTextureEx(background, (Vector2){deslocamento_x, deslocamento_y}, 0, scale, WHITE);
 }
+
 void DrawLives(Player player) {
     Vector2 livesPosition = { 20, 20 }; // Posição fixa no canto superior esquerdo da tela
     if (player.lives == 3) {
@@ -104,12 +132,12 @@ void DrawLives(Player player) {
 }
 
 // atualiza o parallax
-void UpdateDrawParallax(BackgroundLayer *layers, int layerCount, float deltaTime, int screenWidth, int screenHeight, bool movingHorizontal, bool movingLeft) {
+void UpdateDrawParallax(BackgroundLayer *layers, int layerCount, float deltaTime, int screenWidth, int screenHeight, bool movingHorizontal, bool movingLeft, Camera2D camera) {
     for (int i = 0; i < layerCount; i++) {
-        // escala com base na altura da tela
+        // Escala com base na altura da tela
         float scale = (float)screenHeight / layers[i].texture.height;
 
-        // atualiza a posição se o player estiver se movendo
+        // Ajusta a posição das camadas conforme a velocidade de movimento
         if (movingHorizontal) {
             if (movingLeft) {
                 layers[i].position.x += layers[i].speed * deltaTime;
@@ -118,20 +146,23 @@ void UpdateDrawParallax(BackgroundLayer *layers, int layerCount, float deltaTime
             }
         }
 
-        // reseta a posição se a textura ultrapassar a tela
+        // Reseta a posição se a textura ultrapassar a tela
         if (layers[i].position.x <= -(layers[i].texture.width * scale)) {
             layers[i].position.x = 0;
         }
 
-        // centraliza o fundo horizontalmente se for menor que a largura da tela
-        float offsetX = 0;
+        // Centraliza horizontalmente caso a camada seja menor que a largura da tela
+        float deslocamento_x = 0;
         if (layers[i].texture.width * scale < screenWidth) {
-            offsetX = (screenWidth - (layers[i].texture.width * scale)) / 2;
+            deslocamento_x = (screenWidth - (layers[i].texture.width * scale)) / 2;
         }
 
-        // desenha a textura duas vezes para criar um scroll contínuo
-        DrawTextureEx(layers[i].texture, (Vector2){layers[i].position.x + offsetX, 0}, 0, scale, WHITE);
-        DrawTextureEx(layers[i].texture, (Vector2){layers[i].position.x + (layers[i].texture.width * scale) + offsetX, 0}, 0, scale, WHITE);
+        // Aplica o offset da câmera com intensidade variável para efeito de profundidade
+        float parallaxdeslocamento_x = camera.offset.x * (0.1f + 0.05f * i);
+
+        // Desenha a textura duas vezes para criar um scroll contínuo
+        DrawTextureEx(layers[i].texture, (Vector2){layers[i].position.x + deslocamento_x + parallaxdeslocamento_x, 0}, 0, scale, WHITE);
+        DrawTextureEx(layers[i].texture, (Vector2){layers[i].position.x + (layers[i].texture.width * scale) + deslocamento_x + parallaxdeslocamento_x, 0}, 0, scale, WHITE);
     }
 }
 
@@ -182,7 +213,7 @@ void DrawPlayer(Player player) {
         sourceRect.width = -frameWidth;
     }
 
-    Rectangle destRect = { player.position.x, player.position.y, player.size.x * 6, player.size.y * 6 };
+    Rectangle destRect = { player.x, player.y, player.width * 6, player.height * 6 };
     Vector2 origin = { 0, 0 };
     
     // desenha o frame atual da spritesheet, aplicando o flip horizontal se necessário
@@ -245,12 +276,12 @@ void aplica_gravidade(Player *player, Enemy *enemy) {
     float gravidade = 0.5f;
     player->velocityY += gravidade; // acumula a gravidade na velocidade
     
-    player->position.y += player->velocityY; // atualiza a posição com base na velocidade
+    player->y += player->velocityY; // atualiza a posição com base na velocidade
     
     // verifica se o player atingiu o chão
-    float groundLevel = (SCREEN_HEIGHT) - player->size.y * 5;
-    if (player->position.y > groundLevel) {
-        player->position.y = groundLevel;
+    float groundLevel = (SCREEN_HEIGHT) - player->height * 5;
+    if (player->y > groundLevel) {
+        player->y = groundLevel;
         player->velocityY = 0; // para a velocidade quando o player chega no chão
         player->isJumping = false; 
     }
@@ -265,18 +296,42 @@ void aplica_gravidade(Player *player, Enemy *enemy) {
 }
 
 void limitar_player(Player *player, int screenWidth, int screenHeight) {
-    if (player->position.x < 0) {
-        player->position.x = 0;
+    if (player->x < 0) {
+        player->x = 0;
     }
-    if (player->position.x + player->size.x > screenWidth) {
-        player->position.x = screenWidth - player->size.x;
+    if (player->x + player->width > screenWidth) {
+        player->x = screenWidth - player->width;
     }
-    if (player->position.y < 0) {
-        player->position.y = 0;
+    if (player->y < 0) {
+        player->y = 0;
     }
-    if (player->position.y + player->size.y > screenHeight) {
-        player->position.y = screenHeight - player->size.y;
+    if (player->y + player->width > screenHeight) {
+        player->y = screenHeight - player->width;
     }
+}
+
+int player_na_platforma( Player player, Platform platforms[], int count ) {
+    for( int i = 0; i < count; i++ ) {
+        Rectangle platform_rec = {
+            .x = platforms[i].x,
+            .y = platforms[i].y,
+            .width = platforms[i].width,
+            .height = platforms[i].height,
+        };
+
+        Rectangle player_rec = {
+            .x = player.x,
+            .y = player.y + player.height - player.height * 0.2,
+            .width = player.width - 15,
+            .height = player.height * 0.2 + 1,
+        };
+
+        if( CheckCollisionRecs( player_rec, platform_rec ) ) {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 int main(void){
@@ -295,26 +350,46 @@ int main(void){
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
 
-    // cria player
-    Player player = {0};
-    player.position = (Vector2){(SCREEN_WIDTH / 2), SCREEN_HEIGHT / 2};
-    player.size = (Vector2){64, 64};
-    player.state = IDLE;
-    player.idleTexture = LoadTexture("assets/player/idle2.png");
-    player.runTexture = LoadTexture("assets/player/run.png");
-    player.jumpTexture = LoadTexture("assets/player/jump.png");
-    player.attackTexture = LoadTexture("assets/player/attack.png");
-    player.maxFrames = 5; // quantidade de frames de IDLE
-    player.frame = 0;
-    player.frameTime = 0.3f; // Tempo entre frames
-    player.currentFrameTime = 0.0f;
-    player.flipRight = true; 
-    player.velocityY = 0;  
-    player.lives = MAX_LIVES;  
+    Vector2 camera_deslocamento = {
+        .x = 0,
+        .y = 0,
+    };
 
-    player.heartTexture3 = LoadTexture("assets/Heart/Heart3.png");
-    player.heartTexture2 = LoadTexture("assets/Heart/Heart2.png");
-    player.heartTexture1 = LoadTexture("assets/Heart/Heart1.png");
+    Vector2 camera_alvo = {
+        .x = 0,
+        .y = 0,
+    };
+
+    Camera2D camera = {
+        .offset = camera_deslocamento,
+        .target = camera_alvo,
+        .rotation = 0,
+        .zoom = 1,
+    };
+
+    // cria player
+    Player player = {
+        .x = SCREEN_WIDTH / 2,
+        .y = SCREEN_HEIGHT / 2,
+        .width = 64,
+        .height = 64,
+        .state = IDLE,
+        .idleTexture = LoadTexture("assets/player/idle2.png"),
+        .runTexture = LoadTexture("assets/player/run.png"),
+        .jumpTexture = LoadTexture("assets/player/jump.png"),
+        .attackTexture = LoadTexture("assets/player/attack.png"),
+        .maxFrames = 5, // quantidade de frames de IDLE
+        .frame = 0,
+        .frameTime = 0.3f, // Tempo entre frames
+        .currentFrameTime = 0.0f,
+        .flipRight = true, 
+        .velocityY = 0,  
+        .lives = MAX_LIVES,  
+        .heartTexture3 = LoadTexture("assets/Heart/Heart3.png"),
+        .heartTexture2 = LoadTexture("assets/Heart/Heart2.png"),
+        .heartTexture1 = LoadTexture("assets/Heart/Heart1.png"),
+    };
+    
 
     // cria enemy
     Enemy enemy = {0};
@@ -334,11 +409,17 @@ int main(void){
     // game loop
     while (!WindowShouldClose()){
 
-        bool colidiu = CheckCollisionRecs(
-            (Rectangle){player.position.x, player.position.y, ((player.size.x)*3)-25, ((player.size.y)*3)-25}, (Rectangle){enemy.position.x, enemy.position.y, ((enemy.size.x)*3)-25, enemy.size.y});
-
+        bool colidiu = false;
         bool movingHorizontal = false;
         bool movingLeft = false;
+        BeginMode2D( camera );
+
+        if( player.x > screenWidth * 0.1 ) {
+            camera.offset.x = -(player.x - screenWidth * 0.1);
+
+        } else if( player.x < screenWidth * 0.05 ) {
+            camera.offset.x = -(player.x - screenWidth * 0.05);
+        }
 
         // movimento player
         if (IsKeyPressed(KEY_W) && !player.isJumping) {
@@ -350,7 +431,7 @@ int main(void){
             player.frameTime = 0.2f;
         }
         if (IsKeyDown(KEY_A)){
-            player.position.x -= 1;
+            player.x -= 1;
             movingHorizontal = true;
             movingLeft = true;
             player.flipRight = false; // Vira para a esquerda
@@ -364,7 +445,7 @@ int main(void){
 
         }
         if (IsKeyDown(KEY_D)){
-            player.position.x += 1;
+            player.x += 1;
             movingHorizontal = true;
             movingLeft = false;
             player.flipRight = true; // Vira para a direita
@@ -396,7 +477,7 @@ int main(void){
         limitar_player(&player, screenWidth, screenHeight);
 
         // inimigo seguindo o player
-        if (player.position.x > enemy.position.x && colidiu == false){
+        if (player.x > enemy.position.x && colidiu == false){
             enemy.position.x += 0.5;
             if (enemy.state != RUNNING) {
                 enemy.state = RUNNING;
@@ -404,7 +485,7 @@ int main(void){
                 enemy.maxFrames = 7;
                 enemy.frameTime = 0.1f;
             }
-        } else if (player.position.x < enemy.position.x && colidiu == false){
+        } else if (player.x < enemy.position.x && colidiu == false){
             enemy.position.x -= 0.5;
             if (enemy.state != RUNNING) {
                 enemy.state = RUNNING;
@@ -450,7 +531,8 @@ int main(void){
             Vector2 posTitulo = { 420, 40 };
             Vector2 posHistoria = { 155, 150 };
 
-            DrawBackground(backgroundTitle, screenWidth, screenHeight);
+            DrawBackground(backgroundTitle, screenWidth, screenHeight, camera);
+            
             DrawTextEx(fontePersonalizada, tituloDoJogo, posTitulo, 40, 1, BLACK); //posicao X, posicao Y, tamanho fonte, cor
             DrawTextEx(fontePersonalizada, historiaDoJogo, posHistoria, 30, 1, WHITE);
             DrawText("Pressione ENTER para iniciar a corrida!", 325, 600, 30, RED);
@@ -459,7 +541,7 @@ int main(void){
             }
         }
         else if(gameState == GAMEPLAY){
-            UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft);
+            UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft, camera);
             DrawEnemy(enemy);
             DrawPlayer(player);
             if (player.invencivel) {
@@ -482,6 +564,7 @@ int main(void){
             DrawLives(player);
         }
         EndDrawing();
+        EndMode2D();
     }
     // unload texturas
     UnloadTexture(player.idleTexture);

@@ -1,0 +1,10 @@
+Rectangle player_rec = {
+            .x = player.x + player.width - (player.width * 0.5),
+            .y = player.y,
+            .width = player.width - 15,
+            .height = player.height * 0.2 + 1,
+        };
+
+player 128x128
+
+verificar aplica velocidade
