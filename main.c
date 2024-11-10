@@ -9,18 +9,20 @@
 
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK } PersonagemState;
 typedef enum { START_SCREEN, GAMEPLAY } GameState;
-const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite\n" 
-                                "recrutou uma equipe de cientistas e após anos de pesquisa\n"
-                                "em um projeto secreto, criou uma arma biológica destinada\n"
-                                "à imortalidade, acreditando ser a única esperança para a\n"
-                                "sobrevivência humana. Porém, o experimento saiu do controle,\n"
-                                "transformando a maioria da população em zumbis. Você é um dos\n"
-                                "poucos que escaparam de uma tentativa de invasão a essa\n"
-                                "fortaleza, mas agora, na floresta densa, hordas de zumbis \n"
-                                "estão por toda parte. Para alcançar a segurança, você deve\n"
-                                "correr por perigosas áreas infestadas, coletar suprimentos.\n"
-                                "Sua meta é chegar a um abrigo subterrâneo, onde os últimos\n"
-                                "cientistas tentam criar uma vacina.\n";
+const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou\n\n" 
+                                "uma equipe de cientistas e após anos de pesquisa em um projeto\n\n"
+                                "secreto, criou uma arma biológica destinada à imortalidade,\n\n"
+                                "acreditando ser a única esperança para a sobrevivência\n\n"
+                                "humana. Porém, o experimento saiu do controle, transformando \n\n"
+                                "a maioria da população em zumbis. Você é um dos poucos que \n\n"
+                                "escaparam de uma tentativa de invasão a essa fortaleza,\n\n"
+                                "mas agora, na floresta densa, hordas de zumbis estão por\n\n"
+                                "toda parte. Para alcançar a segurança, você deve correr\n\n"
+                                "por perigosas áreas infestadas, coletar suprimentos.\n\n"
+                                "Sua meta é chegar a um abrigo subterrâneo, onde os últimos\n\n"
+                                "cientistas tentam criar uma vacina.\n\n";
+const char *tituloDoJogo = "Pitfall: Rise of Dead";
+Texture2D backgroundTitle;
 // struct player
 typedef struct{
     Vector2 position;
@@ -82,6 +84,28 @@ void DrawBackground(Texture2D background, int screenWidth, int screenHeight) {
 
     // Draw the scaled background
     DrawTextureEx(background, (Vector2){offsetX, offsetY}, 0, scale, WHITE);
+}
+void DrawBackgroundWithOverlay(Texture2D background, int screenWidth, int screenHeight) {
+    float scale;
+    float offsetX = 0;
+    float offsetY = 0;
+
+    // Cálculo do fator de escala para cobrir a tela toda
+    float scaleX = (float)screenWidth / background.width;
+    float scaleY = (float)screenHeight / background.height;
+    
+    scale = (scaleX > scaleY) ? scaleX : scaleY;
+
+    if (background.width * scale > screenWidth)
+        offsetX = (screenWidth - (background.width * scale)) / 2;
+    if (background.height * scale > screenHeight)
+        offsetY = (screenHeight - (background.height * scale)) / 2;
+
+    DrawTextureEx(background, (Vector2){offsetX, offsetY}, 0, scale, WHITE);
+    
+    // Desenho do overlay semitransparente
+    Rectangle overlayRect = { 50, 100, screenWidth - 100, 300 }; // Ajuste conforme necessário
+    DrawRectangleRec(overlayRect, Fade(BLACK, 0.5f)); // Preto com 50% de transparência
 }
 
 // atualiza o parallax
@@ -271,6 +295,7 @@ int main(void){
         { LoadTexture("assets/map/layers/bg3.png"), (Vector2){0, 0}, 100 },
         { LoadTexture("assets/map/layers/ground2.png"), (Vector2){0, 0}, 200 }
     };
+    backgroundTitle = LoadTexture("assets/map/layers/initialbackground.png");
 
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
@@ -413,8 +438,11 @@ int main(void){
         BeginDrawing();
         ClearBackground(RAYWHITE);
         if(gameState == START_SCREEN){
-            DrawText("Pitfall: Rise of Dead", screenWidth / 2 - MeasureText("Pitfall: Rise of Dead", 20) / 2, screenHeight / 3 - 30, 20, BLACK);
-            DrawText(historiaDoJogo, screenWidth / 2 - MeasureText(historiaDoJogo, 20) / 2, screenHeight / 3 + 30, 20, BLACK);
+            BeginDrawing();
+            DrawBackground(backgroundTitle, screenWidth, screenHeight);
+            DrawText(tituloDoJogo, 420, 40, 40, BLACK); //posicao X, posicao Y, tamanho fonte, cor
+            DrawText(historiaDoJogo, 155, 150, 30, WHITE);
+            DrawText("Pressione ENTER para iniciar a corrida!", 325, 600, 30, RED);
             if(IsKeyPressed(KEY_ENTER)){
                 gameState = GAMEPLAY;
             }
