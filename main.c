@@ -3,9 +3,9 @@
 #include <math.h>
 
 #define SCALE_FACTOR 1.6
-#define SCREEN_HEIGHT 600
+#define SCREEN_HEIGHT 450
 #define SCREEN_WIDTH 800
-#define LAYER_COUNT 3
+#define LAYER_COUNT 2
 #define MAX_LIVES 3
 
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK } PersonagemState;
@@ -23,7 +23,7 @@ const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite
                                 "Sua meta é chegar a um abrigo subterrâneo, onde os últimos\n\n"
                                 "cientistas tentam criar uma vacina.\n\n";
 const char *tituloDoJogo = "Pitfall: Rise of Dead";
-Texture2D backgroundTitle;
+
 // struct player
 typedef struct{
     int x;
@@ -279,7 +279,7 @@ void aplica_gravidade(Player *player, Enemy *enemy) {
     player->y += player->velocityY; // atualiza a posição com base na velocidade
     
     // verifica se o player atingiu o chão
-    float groundLevel = (SCREEN_HEIGHT) - player->height * 5;
+    float groundLevel = 190 - player->height * 0.15;
     if (player->y > groundLevel) {
         player->y = groundLevel;
         player->velocityY = 0; // para a velocidade quando o player chega no chão
@@ -343,9 +343,10 @@ int main(void){
     BackgroundLayer layers[LAYER_COUNT] = {
         { LoadTexture("assets/map/layers/bg1.png"), (Vector2){0, 0}, 50 },
         { LoadTexture("assets/map/layers/bg3.png"), (Vector2){0, 0}, 100 },
-        { LoadTexture("assets/map/layers/ground2.png"), (Vector2){0, 0}, 200 }
     };
-    backgroundTitle = LoadTexture("assets/map/layers/initialbackground.png");
+    Texture2D backgroundTitle = LoadTexture("assets/map/layers/initialbackground.png");
+    Texture2D floor_piece_texture = LoadTexture( "assets/map/floor.png");
+    Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
 
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
@@ -367,10 +368,36 @@ int main(void){
         .zoom = 1,
     };
 
+    int worldWidth = screenWidth * 10;
+    
+    // definicões da plataforma
+    float platform_spacing = 0.01; // espacamento entre as plataformas para garantir que nao fiquem coladas (tá como porcentagem da screenWidth)
+    int platform_width = 180; // tamanho (largura) de cada plataforma
+    int platform_count = worldWidth / ( platform_width + platform_spacing * screenWidth ); // calcula quantas plataformas cabem no mundo (worldWidth) - pegando a largura das plataformas e os espacamentos
+    
+    // definicões do chão (floor)
+    int floor_piece_width = 490; // largura do chão
+    int floor_piece_height = 190; // altura do chão
+    int floor_whitespace = 33;
+    int floor_piece_count = ceil((float)worldWidth / (float)floor_whitespace); // calcula quantos pedacos de chão são necessários pra cobrir toda a largura do mundo
+    // criando chão (floor)
+    Platform platforms[platform_count + floor_piece_count];  // Ajusta o array de plataformas para incluir o chão
+
+    int floor_x = 0;
+    int floor_offset = 100;  // Adjust this value to move floor higher or lower
+    for (int i = 0; i < floor_piece_count; i++) {
+        platforms[i].x = floor_x;
+        platforms[i].y = screenHeight - floor_piece_height + floor_whitespace;
+        platforms[i].width = floor_piece_width;
+        platforms[i].height = floor_piece_height;
+        platforms[i].type = FLOOR;
+        floor_x += platforms[i].width;
+    }
+
     // cria player
     Player player = {
         .x = SCREEN_WIDTH / 2,
-        .y = SCREEN_HEIGHT / 2,
+        .y = floor_piece_height,
         .width = 64,
         .height = 64,
         .state = IDLE,
@@ -390,28 +417,33 @@ int main(void){
         .heartTexture1 = LoadTexture("assets/Heart/Heart1.png"),
     };
     
-
     // cria enemy
-    Enemy enemy = {0};
-    enemy.position = (Vector2){0, screenHeight / 2};
-    enemy.size = (Vector2){64, 64};
-    enemy.state = IDLE;
-    enemy.idleTexture = LoadTexture("assets/zombie/Idle.png");
-    enemy.runTexture = LoadTexture("assets/zombie/run.png");
-    enemy.attackTexture = LoadTexture("assets/zombie/attack.png");
-    enemy.maxFrames = 7;
-    enemy.frame = 0;
-    enemy.frameTime = 0.3f;
-    enemy.currentFrameTime = 0.0f;
-    enemy.flipRight = true;
-    enemy.velocityY = 0;
+    Enemy enemy = {
+        .position = (Vector2){0, screenHeight / 2},
+        .size = (Vector2){64, 64},
+        .state = IDLE,
+        .idleTexture = LoadTexture("assets/zombie/Idle.png"),
+        .runTexture = LoadTexture("assets/zombie/run.png"),
+        .attackTexture = LoadTexture("assets/zombie/attack.png"),
+        .maxFrames = 7,
+        .frame = 0,
+        .frameTime = 0.3f,
+        .currentFrameTime = 0.0f,
+        .flipRight = true,
+        .velocityY = 0,
+    };
     
+
+    
+
     // game loop
     while (!WindowShouldClose()){
 
         bool colidiu = false;
         bool movingHorizontal = false;
         bool movingLeft = false;
+
+        // camera 2D
         BeginMode2D( camera );
 
         if( player.x > screenWidth * 0.1 ) {
@@ -419,6 +451,14 @@ int main(void){
 
         } else if( player.x < screenWidth * 0.05 ) {
             camera.offset.x = -(player.x - screenWidth * 0.05);
+        }
+
+        if( camera.offset.x > 0 ) {
+            camera.offset.x = 0;
+        }
+
+        if( camera.offset.x < -(worldWidth - screenWidth) ) {
+            camera.offset.x = -(worldWidth - screenWidth);
         }
 
         // movimento player
@@ -526,7 +566,6 @@ int main(void){
             int posYhistoria = 150;
             int fonttitulo = 40;
             int fonthistoria = 30;
-            Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
             // cor titulo = preto, cor historia = branco, cor comando = vermelho
             Vector2 posTitulo = { 420, 40 };
             Vector2 posHistoria = { 155, 150 };
@@ -544,6 +583,18 @@ int main(void){
             UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft, camera);
             DrawEnemy(enemy);
             DrawPlayer(player);
+
+            //desenhar floor
+            for (int i = 0; i < platform_count; i++) {
+                if (platforms[i].type == FLOOR) {
+                    Rectangle sourceRect = { 0, 0, floor_piece_texture.width, floor_piece_texture.height };
+                    Rectangle destRect = { platforms[i].x, platforms[i].y, floor_piece_width, floor_piece_height };
+
+                    DrawTexture(floor_piece_texture, platforms[i].x, platforms[i].y - floor_whitespace, WHITE);
+                }
+            }
+
+
             if (player.invencivel) {
                 player.invencibilidadeTimer -= GetFrameTime();
                 if (player.invencibilidadeTimer <= 0) {
@@ -570,8 +621,13 @@ int main(void){
     UnloadTexture(player.idleTexture);
     UnloadTexture(player.runTexture);
     UnloadTexture(player.jumpTexture);
+    UnloadTexture(player.attackTexture);
     UnloadTexture(enemy.idleTexture);
     UnloadTexture(enemy.runTexture);
+    UnloadTexture(enemy.attackTexture);
+    UnloadTexture(backgroundTitle);
+    UnloadTexture(floor_piece_texture);
+    UnloadFont(fontePersonalizada);
 
     for (int i = 0; i < LAYER_COUNT; i++) {
         UnloadTexture(layers[i].texture);
