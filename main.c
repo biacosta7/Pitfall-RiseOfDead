@@ -1,5 +1,6 @@
 #include <raylib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <math.h>
 
 #define SCALE_FACTOR 1.6
@@ -45,12 +46,14 @@ typedef struct{
     float currentFrameTime; // Acumulador de tempo
     int maxFrames;       // Número de frames na spritesheet
     bool flipRight; // controla a direção
+    bool walking;
     int lives;
     Texture2D heartTexture3;
     Texture2D heartTexture2;
     Texture2D heartTexture1;
     bool invencivel; //tempo de invencibilidade logo apos levar uma colisao
     float invencibilidadeTimer; // tempo que dura a invencibilidade
+    int direction;
 } Player;
 
 // struct enemy
@@ -89,6 +92,7 @@ typedef struct {
     PlatformType type;
     Texture2D texture;
 } Platform;
+
 
 void DrawBackground(Texture2D background, int screenWidth, int screenHeight, Camera2D camera) {
     float scale;
@@ -271,24 +275,71 @@ void DrawEnemy(Enemy enemy) {
     DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
 }
 
+int player_na_platforma(Player player, Platform platforms[], int platformCount) {
+    // Create collision box for player that aligns with their feet
+    Rectangle player_rec = {
+        .x = player.x,
+        .y = player.y + (player.height * 6) - 10, // Adjust for scaled height and small offset
+        .width = player.width * 6,  // Match the scaled sprite size
+        .height = 10  // Small height for ground detection
+    };
 
-void aplica_gravidade(Player *player, Enemy *enemy) {
-    float gravidade = 0.5f;
-    player->velocityY += gravidade; // acumula a gravidade na velocidade
+    for(int i = 0; i < platformCount; i++) {
+        Rectangle platform_rec = {
+            .x = platforms[i].x,
+            .y = platforms[i].y,
+            .width = platforms[i].width,
+            .height = platforms[i].height
+        };
+
+        if(CheckCollisionRecs(player_rec, platform_rec)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void aplica_gravidade(Player *player, Enemy *enemy, Platform platforms[], int platform_count, float deltaTime) {
+    const float GRAVITY = 15.0f;  // Increased gravity constant
+    const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
     
-    player->y += player->velocityY; // atualiza a posição com base na velocidade
+    // Apply gravity with deltaTime
+    player->velocityY += GRAVITY * deltaTime;
     
-    // verifica se o player atingiu o chão
-    float groundLevel = 190 - player->height * 0.15;
-    if (player->y > groundLevel) {
-        player->y = groundLevel;
-        player->velocityY = 0; // para a velocidade quando o player chega no chão
-        player->isJumping = false; 
+    // Clamp fall speed
+    if (player->velocityY > MAX_FALL_SPEED) {
+        player->velocityY = MAX_FALL_SPEED;
+    }
+    
+    // Store previous position for collision resolution
+    float previousY = player->y;
+    
+    // Update position
+    player->y += player->velocityY * deltaTime * 60.0f; // Normalize for 60 FPS
+    
+    // Check platform collision
+    int current_platform = player_na_platforma(*player, platforms, platform_count);
+    
+    if (current_platform != -1) {
+        // If colliding with platform
+        if (player->velocityY > 0) {  // Only if moving downward
+            // Snap to platform top
+            player->y = platforms[current_platform].y - (player->height * 6);
+            player->velocityY = 0;
+            player->isJumping = false;
+        }
+    } else {
+        // If in air, ensure jumping state is set
+        if (player->velocityY != 0) {
+            player->isJumping = true;
+        }
     }
 
-    enemy->velocityY += gravidade;
-    enemy->position.y += enemy->velocityY;
+    // Enemy gravity
+    enemy->velocityY += GRAVITY * deltaTime;
+    enemy->position.y += enemy->velocityY * deltaTime;
 
+    float groundLevel = 190 - player->height * 0.15;
     if (enemy->position.y > groundLevel) {
         enemy->position.y = groundLevel;
         enemy->velocityY = 0;
@@ -310,29 +361,6 @@ void limitar_player(Player *player, int screenWidth, int screenHeight) {
     }
 }
 
-int player_na_platforma( Player player, Platform platforms[], int count ) {
-    for( int i = 0; i < count; i++ ) {
-        Rectangle platform_rec = {
-            .x = platforms[i].x,
-            .y = platforms[i].y,
-            .width = platforms[i].width,
-            .height = platforms[i].height,
-        };
-
-        Rectangle player_rec = {
-            .x = player.x,
-            .y = player.y + player.height - player.height * 0.2,
-            .width = player.width - 15,
-            .height = player.height * 0.2 + 1,
-        };
-
-        if( CheckCollisionRecs( player_rec, platform_rec ) ) {
-            return i;
-        }
-    }
-
-    return -1;
-}
 
 int main(void){
     // cria window
@@ -347,6 +375,8 @@ int main(void){
     Texture2D backgroundTitle = LoadTexture("assets/map/layers/initialbackground.png");
     Texture2D floor_piece_texture = LoadTexture( "assets/map/floor.png");
     Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
+    Texture2D platform1_texture = LoadTexture("assets/obstaculos/platform1.png");
+    Texture2D platform2_texture = LoadTexture("assets/obstaculos/platform2.png");
 
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
@@ -373,31 +403,50 @@ int main(void){
     // definicões da plataforma
     float platform_spacing = 0.01; // espacamento entre as plataformas para garantir que nao fiquem coladas (tá como porcentagem da screenWidth)
     int platform_width = 180; // tamanho (largura) de cada plataforma
-    int platform_count = worldWidth / ( platform_width + platform_spacing * screenWidth ); // calcula quantas plataformas cabem no mundo (worldWidth) - pegando a largura das plataformas e os espacamentos
-    
+    int platform_count = worldWidth / platform_width; // calcula quantas plataformas cabem no mundo (worldWidth) - pegando a largura das plataformas e os espacamentos
+
     // definicões do chão (floor)
     int floor_piece_width = 490; // largura do chão
     int floor_piece_height = 190; // altura do chão
     int floor_whitespace = 33;
     int floor_piece_count = ceil((float)worldWidth / (float)floor_whitespace); // calcula quantos pedacos de chão são necessários pra cobrir toda a largura do mundo
+    
     // criando chão (floor)
-    Platform platforms[platform_count + floor_piece_count];  // Ajusta o array de plataformas para incluir o chão
+    int total_platform_count = platform_count + floor_piece_count;
+    Platform platforms[total_platform_count];
+    // Platform platforms[platform_count + 1];  // Ajusta o array de plataformas para incluir o chão
+
+    //definicoes dos pits
+    int platform_height = 50;
+    int platform_min_y = screenHeight * 0.2;
+    int platform_max_y = screenHeight - floor_piece_height - platform_height - platform_min_y;;
+    int platform1_whitespace = 20;
+    int platform2_whitespace = 20;
+
+    platform_count += floor_piece_count;
 
     int floor_x = 0;
     int floor_offset = 100;  // Adjust this value to move floor higher or lower
-    for (int i = 0; i < floor_piece_count; i++) {
-        platforms[i].x = floor_x;
+    
+    // Alternância das plataformas sem espaços entre elas
+    int platform_x = floor_x;  // Continua após o chão
+    int platform1_count = 2;  // Número de `platform1` antes de uma `platform2`
+    int platform1_streak = 0; // Contador para garantir a sequência
+
+    for (int i=0; i <= platform_count; i++) {
+        platforms[i].x = platform_x;
         platforms[i].y = screenHeight - floor_piece_height + floor_whitespace;
-        platforms[i].width = floor_piece_width;
-        platforms[i].height = floor_piece_height;
-        platforms[i].type = FLOOR;
-        floor_x += platforms[i].width;
+        platforms[i].width = platform_width;
+        platforms[i].height = platform_height;
+        platforms[i].type = PLATFORM;
+
+        platform_x += platforms[i].width;
     }
 
     // cria player
     Player player = {
         .x = SCREEN_WIDTH / 2,
-        .y = floor_piece_height,
+        .y = 0,
         .width = 64,
         .height = 64,
         .state = IDLE,
@@ -415,6 +464,8 @@ int main(void){
         .heartTexture3 = LoadTexture("assets/Heart/Heart3.png"),
         .heartTexture2 = LoadTexture("assets/Heart/Heart2.png"),
         .heartTexture1 = LoadTexture("assets/Heart/Heart1.png"),
+        .walking = false,
+        .direction = 1,
     };
     
     // cria enemy
@@ -434,126 +485,13 @@ int main(void){
     };
     
 
-    
-
     // game loop
     while (!WindowShouldClose()){
 
         bool colidiu = false;
         bool movingHorizontal = false;
         bool movingLeft = false;
-
-        // camera 2D
-        BeginMode2D( camera );
-
-        if( player.x > screenWidth * 0.1 ) {
-            camera.offset.x = -(player.x - screenWidth * 0.1);
-
-        } else if( player.x < screenWidth * 0.05 ) {
-            camera.offset.x = -(player.x - screenWidth * 0.05);
-        }
-
-        if( camera.offset.x > 0 ) {
-            camera.offset.x = 0;
-        }
-
-        if( camera.offset.x < -(worldWidth - screenWidth) ) {
-            camera.offset.x = -(worldWidth - screenWidth);
-        }
-
-        // movimento player
-        if (IsKeyPressed(KEY_W) && !player.isJumping) {
-            player.velocityY = -10.0f; // velocidade de pulo inicial
-            player.isJumping = true;
-            player.state = JUMPING;
-            player.frame = 0; // resetar para o primeiro frame de pulo
-            player.maxFrames = 8;
-            player.frameTime = 0.2f;
-        }
-        if (IsKeyDown(KEY_A)){
-            player.x -= 1;
-            movingHorizontal = true;
-            movingLeft = true;
-            player.flipRight = false; // Vira para a esquerda
-
-            if (player.state != RUNNING) {
-                player.state = RUNNING;
-                player.frame = 0; // Reseta o frame ao entrar no estado RUNNING
-                player.maxFrames = 8;
-                player.frameTime = 0.1f;
-            }
-
-        }
-        if (IsKeyDown(KEY_D)){
-            player.x += 1;
-            movingHorizontal = true;
-            movingLeft = false;
-            player.flipRight = true; // Vira para a direita
-
-            if (player.state != RUNNING) {
-                player.state = RUNNING;
-                player.frame = 0;
-                player.maxFrames = 8;
-                player.frameTime = 0.1f;
-            }
-        }
-        if (IsKeyDown(KEY_R)){
-            if (player.state != ATTACK) {
-                player.state = ATTACK;
-                player.frame = 0;
-                player.maxFrames = 5;
-                player.frameTime = 0.05f;
-            }
-        }
-        else if (!movingHorizontal && !player.isJumping) {
-            if (player.state != IDLE) {
-                player.state = IDLE;
-                player.frame = 0;
-                player.maxFrames = 5;
-                player.frameTime = 0.3f;
-            }
-        }
-
-        limitar_player(&player, screenWidth, screenHeight);
-
-        // inimigo seguindo o player
-        if (player.x > enemy.position.x && colidiu == false){
-            enemy.position.x += 0.5;
-            if (enemy.state != RUNNING) {
-                enemy.state = RUNNING;
-                enemy.frame = 0;
-                enemy.maxFrames = 7;
-                enemy.frameTime = 0.1f;
-            }
-        } else if (player.x < enemy.position.x && colidiu == false){
-            enemy.position.x -= 0.5;
-            if (enemy.state != RUNNING) {
-                enemy.state = RUNNING;
-                enemy.frame = 0;
-                enemy.maxFrames = 7;
-                enemy.frameTime = 0.1f;
-            }
-        } else if(colidiu){
-            if (enemy.state != ATTACK) {
-                enemy.state = ATTACK;
-                enemy.frame = 0;
-                enemy.maxFrames = 4;
-                enemy.frameTime = 0.1f;
-            }
-        } //else if{
-        //     if (enemy.state != IDLE) {
-        //         enemy.state = IDLE;
-        //         enemy.frame = 0;
-        //         enemy.maxFrames = 8;
-        //         enemy.frameTime = 0.3f;
-        //     }
-        // } 
-
-        aplica_gravidade(&player, &enemy);
-        
         float deltaTime = GetFrameTime();
-        UpdatePlayerAnimation(&player, deltaTime);
-        UpdateEnemyAnimation(&enemy, deltaTime);
 
         // draw the game
         BeginDrawing();
@@ -580,17 +518,164 @@ int main(void){
             }
         }
         else if(gameState == GAMEPLAY){
+            // camera 2D
+            BeginMode2D( camera );
+
+            if( player.x > screenWidth * 0.1 ) {
+                camera.offset.x = -(player.x - screenWidth * 0.1);
+
+            } else if( player.x < screenWidth * 0.05 ) {
+                camera.offset.x = -(player.x - screenWidth * 0.05);
+            }
+
+            if( camera.offset.x > 0 ) {
+                camera.offset.x = 0;
+            }
+
+            if( camera.offset.x < -(worldWidth - screenWidth) ) {
+                camera.offset.x = -(worldWidth - screenWidth);
+            }
+
+            // movimento player
+            if (IsKeyPressed(KEY_W) && !player.isJumping) {
+                player.velocityY = -10.0f; // velocidade de pulo inicial
+                player.isJumping = true;
+                player.walking = false;
+                player.state = JUMPING;
+                player.frame = 0; // resetar para o primeiro frame de pulo
+                player.maxFrames = 8;
+                player.frameTime = 0.2f;
+            }
+            if (IsKeyDown(KEY_A)){
+                player.x -= 1;
+                movingHorizontal = true;
+                movingLeft = true;
+                player.flipRight = false; // Vira para a esquerda
+                player.walking = true;
+
+                if (player.state != RUNNING) {
+                    player.state = RUNNING;
+                    player.frame = 0; // Reseta o frame ao entrar no estado RUNNING
+                    player.maxFrames = 8;
+                    player.frameTime = 0.1f;
+                }
+
+
+            }
+            if (IsKeyDown(KEY_D)){
+                player.x += 5;
+                movingHorizontal = true; //remover esse
+                movingLeft = false;
+                player.flipRight = true; // Vira para a direita
+                player.walking = true;
+
+                if (player.state != RUNNING) {
+                    player.state = RUNNING;
+                    player.frame = 0;
+                    player.maxFrames = 8;
+                    player.frameTime = 0.1f;
+                }
+            }
+            if (IsKeyDown(KEY_R)){
+                if (player.state != ATTACK) {
+                    player.state = ATTACK;
+                    player.walking = false;
+                    player.frame = 0;
+                    player.maxFrames = 5;
+                    player.frameTime = 0.05f;
+                }
+            }
+            else if (!movingHorizontal && !player.isJumping) {
+                player.walking = false;
+                if (player.state != IDLE) {
+                    player.state = IDLE;
+                    player.frame = 0;
+                    player.maxFrames = 5;
+                    player.frameTime = 0.3f;
+                }
+            }
+
+            // inimigo seguindo o player
+            if (player.x > enemy.position.x && colidiu == false){
+                enemy.position.x += 0.5;
+                if (enemy.state != RUNNING) {
+                    enemy.state = RUNNING;
+                    enemy.frame = 0;
+                    enemy.maxFrames = 7;
+                    enemy.frameTime = 0.1f;
+                }
+            } else if (player.x < enemy.position.x && colidiu == false){
+                enemy.position.x -= 0.5;
+                if (enemy.state != RUNNING) {
+                    enemy.state = RUNNING;
+                    enemy.frame = 0;
+                    enemy.maxFrames = 7;
+                    enemy.frameTime = 0.1f;
+                }
+            } else if(colidiu){
+                if (enemy.state != ATTACK) {
+                    enemy.state = ATTACK;
+                    enemy.frame = 0;
+                    enemy.maxFrames = 4;
+                    enemy.frameTime = 0.1f;
+                }
+            } //else if{
+            //     if (enemy.state != IDLE) {
+            //         enemy.state = IDLE;
+            //         enemy.frame = 0;
+            //         enemy.maxFrames = 8;
+            //         enemy.frameTime = 0.3f;
+            //     }
+            // } 
+
+            aplica_gravidade(&player, &enemy, platforms, platform_count, deltaTime);
+            
+            UpdatePlayerAnimation(&player, deltaTime);
+            UpdateEnemyAnimation(&enemy, deltaTime);
+
             UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft, camera);
             DrawEnemy(enemy);
             DrawPlayer(player);
 
+            // In your main game loop where you draw debug rectangles:
+            // Draw player collision box
+            Rectangle collision_box = {
+                .x = player.x,
+                .y = player.y + (player.height * 6) - 10,
+                .width = player.width * 6,
+                .height = 10
+            };
+            DrawRectangleRec(collision_box, ColorAlpha(GREEN, 0.5f));
+
+            // Draw player bounds
+            Rectangle player_bounds = {
+                .x = player.x,
+                .y = player.y,
+                .width = player.width * 6,
+                .height = player.height * 6
+            };
+            DrawRectangleLines(player_bounds.x, player_bounds.y, 
+                            player_bounds.width, player_bounds.height, RED);
+
             //desenhar floor
             for (int i = 0; i < platform_count; i++) {
                 if (platforms[i].type == FLOOR) {
-                    Rectangle sourceRect = { 0, 0, floor_piece_texture.width, floor_piece_texture.height };
-                    Rectangle destRect = { platforms[i].x, platforms[i].y, floor_piece_width, floor_piece_height };
-
                     DrawTexture(floor_piece_texture, platforms[i].x, platforms[i].y - floor_whitespace, WHITE);
+                } else {
+                    // Alternância entre as plataformas
+                    Texture2D platform_texture = platform1_texture;
+                    int whitespace = platform1_whitespace;
+
+                    // Se `platform1_streak` for igual a `platform1_count`, trocamos para `platform2`
+                    if (platform1_streak >= platform1_count) {
+                        platform_texture = platform2_texture;
+                        whitespace = platform2_whitespace;
+                        platform1_streak = 0; // Reset para a próxima sequência
+                    } else {
+                        platform1_streak++;
+                    }
+
+                    DrawTexture(platform_texture, platforms[i].x, platforms[i].y - whitespace, WHITE);
                 }
             }
 
@@ -614,8 +699,9 @@ int main(void){
             }
             DrawLives(player);
         }
-        EndDrawing();
         EndMode2D();
+        EndDrawing();
+        
     }
     // unload texturas
     UnloadTexture(player.idleTexture);
@@ -628,6 +714,8 @@ int main(void){
     UnloadTexture(backgroundTitle);
     UnloadTexture(floor_piece_texture);
     UnloadFont(fontePersonalizada);
+    UnloadTexture(platform1_texture);
+    UnloadTexture(platform2_texture);
 
     for (int i = 0; i < LAYER_COUNT; i++) {
         UnloadTexture(layers[i].texture);
