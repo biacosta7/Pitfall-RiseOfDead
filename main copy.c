@@ -276,7 +276,7 @@ void DrawEnemy(Enemy enemy) {
     DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
 }
 
-int player_na_platforma(Player player, Platform platforms[], int total_platform_count) {
+int player_na_platforma(Player player, Platform platforms[], int platformCount) {
     // Create collision box for player that aligns with their feet
     Rectangle player_rec = {
         .x = player.x,
@@ -285,7 +285,7 @@ int player_na_platforma(Player player, Platform platforms[], int total_platform_
         .height = 10  // Small height for ground detection
     };
 
-    for(int i = 0; i < total_platform_count; i++) {
+    for(int i = 0; i < platformCount; i++) {
         Rectangle platform_rec = {
             .x = platforms[i].x,
             .y = platforms[i].y,
@@ -300,7 +300,7 @@ int player_na_platforma(Player player, Platform platforms[], int total_platform_
     return -1;
 }
 
-void aplica_gravidade(Player *player, Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime) {
+void aplica_gravidade(Player *player, Enemy *enemy, Platform platforms[], int platform_count, float deltaTime) {
     const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
     
     // Apply gravity with deltaTime
@@ -318,7 +318,7 @@ void aplica_gravidade(Player *player, Enemy *enemy, Platform platforms[], int to
     player->y += player->velocityY * deltaTime * 60.0f; // Normalize for 60 FPS
     
     // Check platform collision
-    int current_platform = player_na_platforma(*player, platforms, total_platform_count);
+    int current_platform = player_na_platforma(*player, platforms, platform_count);
     
     if (current_platform != -1) {
         // If colliding with platform
@@ -349,6 +349,22 @@ void aplica_gravidade(Player *player, Enemy *enemy, Platform platforms[], int to
     }
 }
 
+void preencher_array(int *floors, int quant_floors, int *platforms, int quant_platforms, int *plataformas_misturadas, int quant_total) {
+    int i = 0, j = 0, k = 0;
+
+    // Preenche plataformas_misturadas com dois elementos de floors seguidos de um de platforms
+    while (k < quant_total) {
+        if (i < quant_floors) {
+            plataformas_misturadas[k++] = floors[i++]; // Primeiro elemento de floors
+        }
+        if (i < quant_floors && k < quant_total) {
+            plataformas_misturadas[k++] = floors[i++]; // Segundo elemento de floors
+        }
+        if (j < quant_platforms && k < quant_total) {
+            plataformas_misturadas[k++] = platforms[j++]; // Um elemento de platforms
+        }
+    }
+}
 
 int main(void){
     // cria window
@@ -395,6 +411,10 @@ int main(void){
     int platform_width = 180; // tamanho (largura) de cada plataforma
 
     int total_platform_count = ceil((float)worldWidth / (float)platform_width); // calcula quantos pedacos de chão são necessários pra cobrir toda a largura do mundo
+
+    int platform_count = ceil(0.33 * total_platform_count); // 1/3 do chao é do tipo plataforma
+
+    int floor_count = ceil(0.66 * total_platform_count); // 2/3 do chao é do tipo floor
     
     // criando chão (floor)
     Platform platforms[total_platform_count];
@@ -403,27 +423,59 @@ int main(void){
     int floor_offset = 100;  // Adjust this value to move floor higher or lower
     
     // Alternância das plataformas sem espaços entre elas
-    int platform_x = floor_x;  // Continua após o chão // o que é isso hein???
+    int platform_x = floor_x;  // Continua após o chão
+    int platform1_count = 2;  // Número de `platform1` antes de uma `platform2`
+    int platform1_streak = 0; // Contador para garantir a sequência
 
-    for(int i=0; i < total_platform_count; i++){
-        if(i%6 == 0){
-            platforms[i].x = platform_x;
-            platforms[i].y = screenHeight - platform_height + whitespace;
-            platforms[i].width = platform_width;
-            platforms[i].height = platform_height;
-            platforms[i].type = PLATFORM; // Plataforma
+    int platforms_lista[platform_count];
+    int floors[floor_count];
+    int plataformas_misturadas[total_platform_count];
 
-            platform_x += platform_width;
-        } else {
-            platforms[i].x = platform_x;
-            platforms[i].y = screenHeight - platform_height + whitespace;
-            platforms[i].width = platform_width;
-            platforms[i].height = platform_height;
-            platforms[i].type = FLOOR; // Floor
+    int i = 0;
 
-            platform_x += platform_width;
-        }
+    // Primeiro loop: cria platforms
+    for (; i < platform_count; i++) {
+        platforms[i].x = platform_x;
+        platforms[i].y = screenHeight - platform_height + whitespace;
+        platforms[i].width = platform_width;
+        platforms[i].height = platform_height;
+        platforms[i].type = 1; // Plataforma
+
+        platforms_lista[i] = i;
+        platform_x += platform_width;
     }
+
+    int j = 0;
+    // Segundo loop: cria floors
+    for (; j < floor_count; j++) {
+        platforms[i].x = platform_x;
+        platforms[i].y = screenHeight - platform_height + whitespace;
+        platforms[i].width = platform_width;
+        platforms[i].height = platform_height;
+        platforms[i].type = 0; // Floor
+
+        floors[j] = i;
+        i++;
+        platform_x += platform_width;
+    }
+
+    // misturar ordem
+    preencher_array(floors, floor_count, platforms_lista, platform_count, plataformas_misturadas, total_platform_count);
+
+    printf("Lista: ");
+    for(int n=0; n<total_platform_count; n++){
+        printf("%d | ", plataformas_misturadas[n]);
+    }
+    for(int n=0; n<total_platform_count; n++){
+        // print the platforms[n].type
+        if(platforms[plataformas_misturadas[n]].type == FLOOR){
+            printf("F | ");
+        } else{
+            printf("P | ");
+        }
+
+    }
+    printf("\n");
 
     // cria player
     Player player = {
@@ -615,7 +667,7 @@ int main(void){
             //     }
             // } 
 
-            aplica_gravidade(&player, &enemy, platforms, total_platform_count, deltaTime);
+            aplica_gravidade(&player, &enemy, platforms, platform_count, deltaTime);
             
             UpdatePlayerAnimation(&player, deltaTime);
             UpdateEnemyAnimation(&enemy, deltaTime);
@@ -624,6 +676,7 @@ int main(void){
             DrawEnemy(enemy);
             DrawPlayer(player);
 
+            // In your main game loop where you draw debug rectangles:
             // Draw player collision box
             Rectangle collision_box = {
                 .x = player.x,
@@ -645,18 +698,20 @@ int main(void){
 
             //desenhar floor/platform
             for (int i = 0; i < total_platform_count; i++) {
+                int elemento_atual = plataformas_misturadas[i];  // Pega o índice atual do array
+
                 Texture2D platform_texture;
                 
                 // Alterna entre as texturas conforme o tipo da plataforma
-                if (platforms[i].type == FLOOR) {
+                if (platforms[elemento_atual].type == FLOOR) {
                     platform_texture = platform1_texture;  // Usa `platform1_texture` para FLOOR
                 } else {
                     platform_texture = platform2_texture;  // Usa `platform2_texture` para PLATFORM
                 }
 
                 // Desenha a textura atual na posição correspondente da plataforma
-                DrawTexture(platform_texture, platforms[i].x, platforms[i].y - whitespace, WHITE);
-                printf("%d\n", i);
+                DrawTexture(platform_texture, platforms[elemento_atual].x, platforms[elemento_atual].y - whitespace, WHITE);
+                printf("%d\n", elemento_atual);
             }
 
 
