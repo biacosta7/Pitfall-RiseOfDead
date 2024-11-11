@@ -1,6 +1,7 @@
 TO DO:
 [ ] Resolver pulo duplo do player
 [ ] Parallax contínuo do fundo
+[ ] Coracao fixo na tela
 
 
 Rectangle player_rec = {

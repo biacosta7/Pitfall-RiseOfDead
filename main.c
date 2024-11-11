@@ -32,7 +32,6 @@ typedef struct{
     int y;
     int width;
     int height;
-    //int direction;
     //int speed;
     //int jump_strength;
     float velocityY; // velocidade vertical (para controlar o pulo)
@@ -56,6 +55,7 @@ typedef struct{
     float invencibilidadeTimer; // tempo que dura a invencibilidade
     int direction;
 } Player;
+
 
 // struct enemy
 typedef struct{
@@ -328,6 +328,9 @@ void aplica_gravidade(Player *player, Enemy *enemy, Platform platforms[], int pl
             player->velocityY = 0;
             player->isJumping = false;
         }
+        if(platforms[current_platform].type == PLATFORM){
+            printf("plataforma\n");
+        }
     } else {
         // If in air, ensure jumping state is set
         if (player->velocityY != 0) {
@@ -345,22 +348,6 @@ void aplica_gravidade(Player *player, Enemy *enemy, Platform platforms[], int pl
         enemy->velocityY = 0;
     }
 }
-
-void limitar_player(Player *player, int screenWidth, int screenHeight) {
-    if (player->x < 0) {
-        player->x = 0;
-    }
-    if (player->x + player->width > screenWidth) {
-        player->x = screenWidth - player->width;
-    }
-    if (player->y < 0) {
-        player->y = 0;
-    }
-    if (player->y + player->width > screenHeight) {
-        player->y = screenHeight - player->width;
-    }
-}
-
 
 int main(void){
     // cria window
@@ -682,6 +669,16 @@ int main(void){
                 } else {
                     platform1_streak++;
                 }
+
+                // if (platforms[i].type == FLOOR) {
+                //     if(platform1_streak >= platform1_count){
+                //         platform1_streak = 0;
+                //     }
+                //     platform_texture = platform1_texture;  // Floor texture
+                //     platform1_streak++;
+                // } else if (platforms[i].type == PLATFORM) {
+                //     platform_texture = platform2_texture;  // Platform texture
+                // }
 
                 DrawTexture(platform_texture, platforms[i].x, platforms[i].y - whitespace, WHITE);
                 
