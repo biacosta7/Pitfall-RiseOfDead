@@ -1,3 +1,8 @@
+TO DO:
+[ ] Resolver pulo duplo do player
+[ ] Parallax contínuo do fundo
+
+
 Rectangle player_rec = {
             .x = player.x + player.width - (player.width * 0.5),
             .y = player.y,

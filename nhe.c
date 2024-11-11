@@ -537,7 +537,7 @@ int main(void){
             }
 
             // movimento player
-            if (IsKeyPressed(KEY_W) && !player.isJumping) {
+            if (IsKeyPressed(KEY_W)) {
                 player.velocityY = -10.0f; // velocidade de pulo inicial
                 player.isJumping = true;
                 player.walking = false;

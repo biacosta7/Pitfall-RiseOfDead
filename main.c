@@ -8,6 +8,7 @@
 #define SCREEN_WIDTH 800
 #define LAYER_COUNT 2
 #define MAX_LIVES 3
+#define GRAVITY 15.0f
 
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK } PersonagemState;
 typedef enum { START_SCREEN, GAMEPLAY } GameState;
@@ -300,7 +301,6 @@ int player_na_platforma(Player player, Platform platforms[], int platformCount) 
 }
 
 void aplica_gravidade(Player *player, Enemy *enemy, Platform platforms[], int platform_count, float deltaTime) {
-    const float GRAVITY = 15.0f;  // Increased gravity constant
     const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
     
     // Apply gravity with deltaTime
@@ -375,7 +375,7 @@ int main(void){
     Texture2D backgroundTitle = LoadTexture("assets/map/layers/initialbackground.png");
     Texture2D floor_piece_texture = LoadTexture( "assets/map/floor.png");
     Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
-    Texture2D platform1_texture = LoadTexture("assets/obstaculos/platform1.png");
+    Texture2D platform1_texture = LoadTexture("assets/map/platform-floor.png");
     Texture2D platform2_texture = LoadTexture("assets/obstaculos/platform2.png");
 
     SetTargetFPS(60);
@@ -536,39 +536,43 @@ int main(void){
                 camera.offset.x = -(worldWidth - screenWidth);
             }
 
+            const float MOVE_SPEED = 5.0f; // constante velocidade player
+
             // movimento player
-            if (IsKeyPressed(KEY_W) && !player.isJumping) {
-                player.velocityY = -10.0f; // velocidade de pulo inicial
+            if (IsKeyPressed(KEY_W)) {
+                player.velocityY = -10.0f;
                 player.isJumping = true;
-                player.walking = false;
                 player.state = JUMPING;
-                player.frame = 0; // resetar para o primeiro frame de pulo
+                player.frame = 0;
                 player.maxFrames = 8;
                 player.frameTime = 0.2f;
             }
-            if (IsKeyDown(KEY_A)){
-                player.x -= 1;
+
+            // Handle horizontal movement
+            if (IsKeyDown(KEY_A)) {
+                player.x -= MOVE_SPEED;
                 movingHorizontal = true;
                 movingLeft = true;
-                player.flipRight = false; // Vira para a esquerda
+                player.flipRight = false;
                 player.walking = true;
-
+                player.isJumping = false;
+                
                 if (player.state != RUNNING) {
                     player.state = RUNNING;
                     player.frame = 0; // Reseta o frame ao entrar no estado RUNNING
                     player.maxFrames = 8;
                     player.frameTime = 0.1f;
                 }
-
-
             }
-            if (IsKeyDown(KEY_D)){
-                player.x += 5;
-                movingHorizontal = true; //remover esse
-                movingLeft = false;
-                player.flipRight = true; // Vira para a direita
-                player.walking = true;
 
+            if (IsKeyDown(KEY_D)) {
+                player.x += MOVE_SPEED;
+                movingHorizontal = true;
+                movingLeft = false;
+                player.flipRight = true;
+                player.walking = true;
+                player.isJumping = false;
+                
                 if (player.state != RUNNING) {
                     player.state = RUNNING;
                     player.frame = 0;
@@ -576,8 +580,9 @@ int main(void){
                     player.frameTime = 0.1f;
                 }
             }
-            if (IsKeyDown(KEY_R)){
-                if (player.state != ATTACK) {
+
+            if (IsKeyDown(KEY_R)) {
+                if (player.state != ATTACK && !player.isJumping) { // Prevent attacking while jumping
                     player.state = ATTACK;
                     player.walking = false;
                     player.frame = 0;
