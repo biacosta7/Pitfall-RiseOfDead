@@ -581,31 +581,21 @@ int main(void){
     
     // criando chão (floor)
     Platform platforms[total_platform_count];
-
-    int floor_x = 0;
-    int floor_offset = 100;  // Adjust this value to move floor higher or lower
     
     // Alternância das plataformas sem espaços entre elas
-    int platform_x = floor_x;  // Continua após o chão // o que é isso hein???
+    int platform_x = 0;  // acumula 
 
     for(int i=0; i < total_platform_count; i++){
+        platforms[i].width = platform_width;
+        platforms[i].height = platform_height;
+        platforms[i].y = screenHeight - platform_height + whitespace;
+        platforms[i].x = platform_x;
         if(i%7 == 6){ 
-            platforms[i].x = platform_x;
-            platforms[i].y = screenHeight - platform_height + whitespace;
-            platforms[i].width = platform_width;
-            platforms[i].height = platform_height;
             platforms[i].type = PLATFORM; // Plataforma
-
-            platform_x += platform_width;
         } else {
-            platforms[i].x = platform_x;
-            platforms[i].y = screenHeight - platform_height + whitespace;
-            platforms[i].width = platform_width;
-            platforms[i].height = platform_height;
             platforms[i].type = FLOOR; // Floor
-
-            platform_x += platform_width;
         }
+        platform_x += platform_width;
     }
 
     // cria player
