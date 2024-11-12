@@ -10,6 +10,7 @@
 #define LAYER_COUNT 2
 #define MAX_LIVES 3
 #define GRAVITY 15.0f
+#define MAX_ENEMIES 5
 
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK } PersonagemState;
 typedef enum { START_SCREEN, GAMEPLAY } GameState;
@@ -47,14 +48,12 @@ typedef struct{
     float currentFrameTime; // Acumulador de tempo
     int maxFrames;       // Número de frames na spritesheet
     bool flipRight; // controla a direção
-    bool walking;
     int lives;
     Texture2D heartTexture3;
     Texture2D heartTexture2;
     Texture2D heartTexture1;
     bool invencivel; //tempo de invencibilidade logo apos levar uma colisao
     float invencibilidadeTimer; // tempo que dura a invencibilidade
-    int direction;
 } Player;
 
 
@@ -75,6 +74,12 @@ typedef struct{
     int maxFrames;       // Número de frames na spritesheet
     bool flipRight; // controla a direção
 } Enemy;
+
+typedef struct {
+    Enemy enemy;
+    bool isActive;
+    float spawnX;
+} EnemySpawner;
 
 typedef struct {
     Texture2D texture;
@@ -230,14 +235,34 @@ void DrawPlayer(Player player) {
 void UpdateEnemyAnimation(Enemy *enemy, float deltaTime) {
     enemy->currentFrameTime += deltaTime;
 
-    // avança para o próximo frame se o tempo decorrido for suficiente
+    // Advance to next frame if enough time has passed
     if (enemy->currentFrameTime >= enemy->frameTime) {
         enemy->currentFrameTime = 0;
         enemy->frame++;
         
-        // volta para o primeiro frame ao atingir o último
-        if (enemy->frame >= enemy->maxFrames) {
-            enemy->frame = 0;
+        // Reset frame based on current state
+        switch(enemy->state) {
+            case RUNNING:
+                if (enemy->frame >= 7) enemy->frame = 0;
+                break;
+                
+            case ATTACK:
+                if (enemy->frame >= 4) {
+                    enemy->frame = 0;
+                    // Optionally return to IDLE after attack animation
+                    enemy->state = IDLE;
+                    enemy->maxFrames = 8;
+                    enemy->frameTime = 0.3f;
+                }
+                break;
+                
+            case IDLE:
+                if (enemy->frame >= 8) enemy->frame = 0;
+                break;
+                
+            default:
+                if (enemy->frame >= enemy->maxFrames) enemy->frame = 0;
+                break;
         }
     }
 }
@@ -276,6 +301,16 @@ void DrawEnemy(Enemy enemy) {
     
     // desenha o frame atual da spritesheet, aplicando o flip horizontal se necessário
     DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
+}
+
+void InitEnemySpawners(EnemySpawner enemies[], int count, Enemy baseEnemy) {
+    float spawnDistance = 800.0f;  // Distance between spawn points
+    
+    for(int i = 0; i < count; i++) {
+        enemies[i].enemy = baseEnemy;  // Copy the base enemy properties
+        enemies[i].isActive = false;
+        enemies[i].spawnX = (i + 1) * spawnDistance;  // Set spawn points progressively further
+    }
 }
 
 int player_na_plataforma(Player player, Platform platforms[], int total_platform_count) {
@@ -355,28 +390,101 @@ bool enemy_colide_player(Enemy enemy, Player player){
     return false;
 }
 
-void aplica_gravidade(Player *player, Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime) {
+// Update and manage enemy spawning
+void UpdateEnemies(EnemySpawner enemies[], int count, Player player) {
+    float spawnTriggerDistance = 400.0f;  // Distance before spawn point when enemy should appear
+    
+    for(int i = 0; i < count; i++) {
+        if (!enemies[i].isActive) {
+            // Check if player is approaching this spawn point
+            if (player.x > (enemies[i].spawnX - spawnTriggerDistance)) {
+                enemies[i].isActive = true;
+                enemies[i].enemy.x = enemies[i].spawnX;
+                enemies[i].enemy.y = player.y;  // Or your ground level
+            }
+        }
+        else {
+            // Update active enemy
+            if (player.x > enemies[i].enemy.x && !enemy_colide_player(enemies[i].enemy, player)){
+                enemies[i].enemy.x += 2.0f;
+                enemies[i].enemy.flipRight = true;
+                if (enemies[i].enemy.state != RUNNING) {
+                    enemies[i].enemy.state = RUNNING;
+                    enemies[i].enemy.frame = 0;
+                    enemies[i].enemy.maxFrames = 7;
+                    enemies[i].enemy.frameTime = 0.1f;
+                }
+            } 
+            else if (player.x < enemies[i].enemy.x && !enemy_colide_player(enemies[i].enemy, player)){
+                enemies[i].enemy.x -= 2.0f;
+                enemies[i].enemy.flipRight = false;
+                if (enemies[i].enemy.state != RUNNING) {
+                    enemies[i].enemy.state = RUNNING;
+                    enemies[i].enemy.frame = 0;
+                    enemies[i].enemy.maxFrames = 7;
+                    enemies[i].enemy.frameTime = 0.1f;
+                }
+            }
+            
+            // Update enemy animation
+            UpdateEnemyAnimation(&enemies[i].enemy, GetFrameTime());
+        }
+    }
+}
+
+void UpdateEnemyPosition(Enemy *enemy, Player player) {
+    if (player.x > enemy->x && !enemy_colide_player(*enemy, player)){
+        enemy->x += 2.0f;
+        enemy->flipRight = true;
+        if (enemy->state != RUNNING) {
+            enemy->state = RUNNING;
+            enemy->frame = 0;
+            enemy->maxFrames = 7;
+            enemy->frameTime = 0.1f;
+        }
+    } else if (player.x < enemy->x && !enemy_colide_player(*enemy, player)){
+        enemy->x -= 2.0f;
+        enemy->flipRight = false;
+        if (enemy->state != RUNNING) {
+            enemy->state = RUNNING;
+            enemy->frame = 0;
+            enemy->maxFrames = 7;
+            enemy->frameTime = 0.1f;
+        }
+    } 
+    else if(enemy_colide_player(*enemy, player)){
+        if (enemy->state != ATTACK) {
+            enemy->state = ATTACK;
+            enemy->frame = 0;
+            enemy->maxFrames = 4;
+            enemy->frameTime = 0.1f;
+        }
+    } else {
+        if (enemy->state != IDLE) {
+            enemy->state = IDLE;
+            enemy->frame = 0;
+            enemy->maxFrames = 8;
+            enemy->frameTime = 0.3f;
+        }
+    }
+}
+
+void aplica_gravidade_player(Player *player, Platform platforms[], int total_platform_count, float deltaTime) {
     const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
     
     // Apply gravity with deltaTime
     player->velocityY += GRAVITY * deltaTime;
-    enemy->velocityY += GRAVITY * deltaTime;
 
     // Clamp fall speed
     if (player->velocityY > MAX_FALL_SPEED) {
         player->velocityY = MAX_FALL_SPEED;
     }
-    if (enemy->velocityY > MAX_FALL_SPEED) {
-        enemy->velocityY = MAX_FALL_SPEED;
-    }
     
     // Update position
     player->y += player->velocityY * deltaTime * 60.0f; // Normalize for 60 FPS
-    enemy->y += enemy->velocityY * deltaTime * 60.0f;
     
     // Check platform collision
     int current_platform = player_na_plataforma(*player, platforms, total_platform_count);
-    int current_platform_enemy = enemy_na_plataforma(*enemy, platforms, total_platform_count);
 
     if (current_platform != -1) {
         // If colliding with platform
@@ -392,24 +500,33 @@ void aplica_gravidade(Player *player, Enemy *enemy, Platform platforms[], int to
             player->isJumping = true;
         }
     }
+}
+
+void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime) {
+    const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
     
+    // Apply gravity with deltaTime
+    enemy->velocityY += GRAVITY * deltaTime;
+
+    // Clamp fall speed
+    if (enemy->velocityY > MAX_FALL_SPEED) {
+        enemy->velocityY = MAX_FALL_SPEED;
+    }
+    
+    // Update position
+    enemy->y += enemy->velocityY * deltaTime * 60.0f;
+    
+    // Check platform collision
+    int current_platform_enemy = enemy_na_plataforma(*enemy, platforms, total_platform_count);
+
     if (current_platform_enemy != -1) {
         // If colliding with platform
         if (enemy->velocityY > 0) {  // Only if moving downward
             // Snap to platform top
-            enemy->y = platforms[current_platform].y - (enemy->height * 6);
+            enemy->y = platforms[current_platform_enemy].y - (enemy->height * 6);
             enemy->velocityY = 0;
         }
     }
-
-    // enemy->velocityY += GRAVITY * deltaTime;
-    //enemy->y += enemy->velocityY * deltaTime;
-
-    // float groundLevel = 190 - player->height * 0.15;
-    // if (enemy->y > groundLevel) {
-    //     enemy->y = groundLevel;
-    //     enemy->velocityY = 0;
-    // }
 }
 
 
@@ -509,14 +626,12 @@ int main(void){
         .heartTexture3 = LoadTexture("assets/Heart/Heart3.png"),
         .heartTexture2 = LoadTexture("assets/Heart/Heart2.png"),
         .heartTexture1 = LoadTexture("assets/Heart/Heart1.png"),
-        .walking = false,
-        .direction = 1,
     };
     
     // cria enemy
     Enemy enemy = {
         .x = SCREEN_WIDTH / 2,
-        .y = 0,
+        .y = 150,
         .width = 64,
         .height = 64,
         .state = IDLE,
@@ -530,8 +645,10 @@ int main(void){
         .flipRight = true,
         .velocityY = 0,
     };
-    
 
+    EnemySpawner enemies[MAX_ENEMIES];
+    InitEnemySpawners(enemies, MAX_ENEMIES, enemy);
+    
     // game loop
     while (!WindowShouldClose()){
 
@@ -601,7 +718,6 @@ int main(void){
                 movingHorizontal = true;
                 movingLeft = true;
                 player.flipRight = false;
-                player.walking = true;
                 player.isJumping = false;
                 
                 if (player.state != RUNNING) {
@@ -617,7 +733,6 @@ int main(void){
                 movingHorizontal = true;
                 movingLeft = false;
                 player.flipRight = true;
-                player.walking = true;
                 player.isJumping = false;
                 
                 if (player.state != RUNNING) {
@@ -631,14 +746,12 @@ int main(void){
             if (IsKeyDown(KEY_R)) {
                 if (player.state != ATTACK && !player.isJumping) { // Prevent attacking while jumping
                     player.state = ATTACK;
-                    player.walking = false;
                     player.frame = 0;
                     player.maxFrames = 5;
                     player.frameTime = 0.05f;
                 }
             }
             else if (!movingHorizontal && !player.isJumping) {
-                player.walking = false;
                 if (player.state != IDLE) {
                     player.state = IDLE;
                     player.frame = 0;
@@ -647,51 +760,26 @@ int main(void){
                 }
             }
 
-            // inimigo seguindo o player
-            if (player.x > enemy.x && !enemy_colide_player(enemy, player)){
-                enemy.x += 2.0f;
-                enemy.flipRight = true;
-                if (enemy.state != RUNNING) {
-                    enemy.state = RUNNING;
-                    enemy.frame = 0;
-                    enemy.maxFrames = 7;
-                    enemy.frameTime = 0.1f;
-                }
-            } else if (player.x < enemy.x && !enemy_colide_player(enemy, player)){
-                enemy.x -= 2.0f;
-                enemy.flipRight = false;
-                if (enemy.state != RUNNING) {
-                    enemy.state = RUNNING;
-                    enemy.frame = 0;
-                    enemy.maxFrames = 7;
-                    enemy.frameTime = 0.1f;
-                }
-            } 
-            else if(enemy_colide_player(enemy, player)){
-                if (enemy.state != ATTACK) {
-                    enemy.state = ATTACK;
-                    enemy.frame = 0;
-                    enemy.maxFrames = 4;
-                    enemy.frameTime = 0.1f;
-                }
-            } //else if{
-            //     if (enemy.state != IDLE) {
-            //         enemy.state = IDLE;
-            //         enemy.frame = 0;
-            //         enemy.maxFrames = 8;
-            //         enemy.frameTime = 0.3f;
-            //     }
-            // } 
+            
 
-            aplica_gravidade(&player, &enemy, platforms, total_platform_count, deltaTime);
+            aplica_gravidade_player(&player, platforms, total_platform_count, deltaTime);
             
             UpdatePlayerAnimation(&player, deltaTime);
-            UpdateEnemyAnimation(&enemy, deltaTime);
+            //UpdateEnemyAnimation(&enemy, deltaTime);
 
             UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft, camera);
-            DrawEnemy(enemy);
+            UpdateEnemies(enemies, MAX_ENEMIES, player);
             DrawPlayer(player);
 
+            for(int i = 0; i < MAX_ENEMIES; i++) {
+                if(enemies[i].isActive) {
+                    UpdateEnemyPosition(&enemies[i].enemy, player);
+                    aplica_gravidade_enemy(&enemies[i].enemy, platforms, total_platform_count, deltaTime);
+                    UpdateEnemyAnimation(&enemies[i].enemy, GetFrameTime());
+                    DrawEnemy(enemies[i].enemy);
+                }
+            }
+            
             // Draw player collision box
             Rectangle collision_box = {
                 .x = player.x + (player.width * 2),
