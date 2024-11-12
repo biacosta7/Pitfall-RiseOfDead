@@ -338,14 +338,14 @@ bool enemy_colide_player(Enemy enemy, Player player){
     Rectangle enemy_rec = {
         .x = enemy.x + (enemy.width * 2),
         .y = enemy.y + (enemy.height * 6) - 10,
-        .width = enemy.width * 6,
+        .width = enemy.width * 3,
         .height = 10 
     };
 
     Rectangle player_rec = {
         .x = player.x + (player.width * 2),
         .y = player.y + (player.height * 6) - 10,
-        .width = player.width * 6,
+        .width = player.width * 3,
         .height = 10 
     };
 
@@ -648,7 +648,7 @@ int main(void){
             }
 
             // inimigo seguindo o player
-            if (player.x > enemy.x){
+            if (player.x > enemy.x && !enemy_colide_player(enemy, player)){
                 enemy.x += 0.5;
                 if (enemy.state != RUNNING) {
                     enemy.state = RUNNING;
@@ -656,7 +656,7 @@ int main(void){
                     enemy.maxFrames = 7;
                     enemy.frameTime = 0.1f;
                 }
-            } else if (player.x < enemy.x){
+            } else if (player.x < enemy.x && !enemy_colide_player(enemy, player)){
                 enemy.x -= 0.5;
                 if (enemy.state != RUNNING) {
                     enemy.state = RUNNING;
@@ -664,7 +664,8 @@ int main(void){
                     enemy.maxFrames = 7;
                     enemy.frameTime = 0.1f;
                 }
-            } else if(enemy_colide_player(enemy, player)){
+            } 
+            else if(enemy_colide_player(enemy, player)){
                 if (enemy.state != ATTACK) {
                     enemy.state = ATTACK;
                     enemy.frame = 0;
@@ -693,7 +694,7 @@ int main(void){
             Rectangle collision_box = {
                 .x = player.x + (player.width * 2),
                 .y = player.y + (player.height * 6) - 10,
-                .width = player.width * 2,
+                .width = player.width * 3,
                 .height = 10
             };
             DrawRectangleRec(collision_box, ColorAlpha(GREEN, 0.5f));
@@ -701,7 +702,7 @@ int main(void){
             Rectangle collision_box_enemy = {
                 .x = enemy.x + (player.width * 2),
                 .y = enemy.y + (player.height * 6) - 10,
-                .width = enemy.width * 10,
+                .width = enemy.width * 3,
                 .height = 10
             };
             DrawRectangleRec(collision_box_enemy, ColorAlpha(YELLOW, 0.5f));
