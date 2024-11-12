@@ -279,9 +279,9 @@ void DrawEnemy(Enemy enemy) {
 int player_na_platforma(Player player, Platform platforms[], int total_platform_count) {
     // Create collision box for player that aligns with their feet
     Rectangle player_rec = {
-        .x = player.x,
+        .x = player.x + (player.width * 2),
         .y = player.y + (player.height * 6) - 10, // Adjust for scaled height and small offset
-        .width = player.width * 6,  // Match the scaled sprite size
+        .width = player.width * 2,
         .height = 10  // Small height for ground detection
     };
 
@@ -294,8 +294,13 @@ int player_na_platforma(Player player, Platform platforms[], int total_platform_
         };
 
         if(CheckCollisionRecs(player_rec, platform_rec)) {
-            return i;
+            if (platforms[i].type == FLOOR){
+                return i;
+            } else{
+                return -1;
+            } 
         }
+        
     }
     return -1;
 }
@@ -626,9 +631,9 @@ int main(void){
 
             // Draw player collision box
             Rectangle collision_box = {
-                .x = player.x,
+                .x = player.x + (player.width * 2),
                 .y = player.y + (player.height * 6) - 10,
-                .width = player.width * 6,
+                .width = player.width * 2,
                 .height = 10
             };
             DrawRectangleRec(collision_box, ColorAlpha(GREEN, 0.5f));
