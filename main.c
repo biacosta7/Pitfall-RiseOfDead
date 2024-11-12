@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <stdbool.h>
 
 #define SCALE_FACTOR 1.6
 #define SCREEN_HEIGHT 450
@@ -59,9 +60,10 @@ typedef struct{
 
 // struct enemy
 typedef struct{
-    Vector2 position;
-    Vector2 size;
-    Color color;
+    int x;
+    int y;
+    int width;
+    int height;
     float velocityY;
     PersonagemState state;
     Texture2D idleTexture;
@@ -269,18 +271,17 @@ void DrawEnemy(Enemy enemy) {
         sourceRect.width = -frameWidth;
     }
 
-    Rectangle destRect = { enemy.position.x, enemy.position.y, enemy.size.x * 6, enemy.size.y * 6 };
+    Rectangle destRect = { enemy.x, enemy.y, enemy.width * 6, enemy.height * 6 };
     Vector2 origin = { 0, 0 };
     
     // desenha o frame atual da spritesheet, aplicando o flip horizontal se necessário
     DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
 }
 
-int player_na_platforma(Player player, Platform platforms[], int total_platform_count) {
-    // Create collision box for player that aligns with their feet
+int player_na_plataforma(Player player, Platform platforms[], int total_platform_count) {
     Rectangle player_rec = {
         .x = player.x + (player.width * 2),
-        .y = player.y + (player.height * 6) - 10, // Adjust for scaled height and small offset
+        .y = player.y + (player.height * 6) - 10,
         .width = player.width * 2,
         .height = 10  // Small height for ground detection
     };
@@ -305,26 +306,78 @@ int player_na_platforma(Player player, Platform platforms[], int total_platform_
     return -1;
 }
 
+int enemy_na_plataforma(Enemy enemy, Platform platforms[], int total_platform_count) {
+    Rectangle enemy_rec = {
+        .x = enemy.x + (enemy.width * 2),
+        .y = enemy.y + (enemy.height * 6) - 10,
+        .width = enemy.width * 2,
+        .height = 10 
+    };
+
+    for(int i = 0; i < total_platform_count; i++) {
+        Rectangle platform_rec = {
+            .x = platforms[i].x,
+            .y = platforms[i].y,
+            .width = platforms[i].width,
+            .height = platforms[i].height
+        };
+
+        if(CheckCollisionRecs(enemy_rec, platform_rec)) {
+            if (platforms[i].type == FLOOR){
+                return i;
+            } else{
+                return -1;
+            } 
+        }
+        
+    }
+    return -1;
+}
+
+bool enemy_colide_player(Enemy enemy, Player player){
+    Rectangle enemy_rec = {
+        .x = enemy.x + (enemy.width * 2),
+        .y = enemy.y + (enemy.height * 6) - 10,
+        .width = enemy.width * 6,
+        .height = 10 
+    };
+
+    Rectangle player_rec = {
+        .x = player.x + (player.width * 2),
+        .y = player.y + (player.height * 6) - 10,
+        .width = player.width * 6,
+        .height = 10 
+    };
+
+    if(CheckCollisionRecs(enemy_rec, player_rec)) {
+        return true;
+    }
+    return false;
+}
+
 void aplica_gravidade(Player *player, Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime) {
     const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
     
     // Apply gravity with deltaTime
     player->velocityY += GRAVITY * deltaTime;
-    
+    enemy->velocityY += GRAVITY * deltaTime;
+
     // Clamp fall speed
     if (player->velocityY > MAX_FALL_SPEED) {
         player->velocityY = MAX_FALL_SPEED;
     }
-    
-    // Store previous position for collision resolution
-    float previousY = player->y;
+    if (enemy->velocityY > MAX_FALL_SPEED) {
+        enemy->velocityY = MAX_FALL_SPEED;
+    }
     
     // Update position
     player->y += player->velocityY * deltaTime * 60.0f; // Normalize for 60 FPS
+    enemy->y += enemy->velocityY * deltaTime * 60.0f;
     
     // Check platform collision
-    int current_platform = player_na_platforma(*player, platforms, total_platform_count);
-    
+    int current_platform = player_na_plataforma(*player, platforms, total_platform_count);
+    int current_platform_enemy = enemy_na_plataforma(*enemy, platforms, total_platform_count);
+
     if (current_platform != -1) {
         // If colliding with platform
         if (player->velocityY > 0) {  // Only if moving downward
@@ -333,25 +386,30 @@ void aplica_gravidade(Player *player, Enemy *enemy, Platform platforms[], int to
             player->velocityY = 0;
             player->isJumping = false;
         }
-        if(platforms[current_platform].type == PLATFORM){
-            printf("plataforma\n");
-        }
     } else {
         // If in air, ensure jumping state is set
         if (player->velocityY != 0) {
             player->isJumping = true;
         }
     }
-
-    // Enemy gravity
-    enemy->velocityY += GRAVITY * deltaTime;
-    enemy->position.y += enemy->velocityY * deltaTime;
-
-    float groundLevel = 190 - player->height * 0.15;
-    if (enemy->position.y > groundLevel) {
-        enemy->position.y = groundLevel;
-        enemy->velocityY = 0;
+    
+    if (current_platform_enemy != -1) {
+        // If colliding with platform
+        if (enemy->velocityY > 0) {  // Only if moving downward
+            // Snap to platform top
+            enemy->y = platforms[current_platform].y - (enemy->height * 6);
+            enemy->velocityY = 0;
+        }
     }
+
+    // enemy->velocityY += GRAVITY * deltaTime;
+    //enemy->y += enemy->velocityY * deltaTime;
+
+    // float groundLevel = 190 - player->height * 0.15;
+    // if (enemy->y > groundLevel) {
+    //     enemy->y = groundLevel;
+    //     enemy->velocityY = 0;
+    // }
 }
 
 
@@ -457,13 +515,15 @@ int main(void){
     
     // cria enemy
     Enemy enemy = {
-        .position = (Vector2){0, screenHeight / 2},
-        .size = (Vector2){64, 64},
+        .x = SCREEN_WIDTH / 2,
+        .y = 0,
+        .width = 64,
+        .height = 64,
         .state = IDLE,
         .idleTexture = LoadTexture("assets/zombie/Idle.png"),
         .runTexture = LoadTexture("assets/zombie/run.png"),
         .attackTexture = LoadTexture("assets/zombie/attack.png"),
-        .maxFrames = 7,
+        .maxFrames = 8,
         .frame = 0,
         .frameTime = 0.3f,
         .currentFrameTime = 0.0f,
@@ -588,23 +648,23 @@ int main(void){
             }
 
             // inimigo seguindo o player
-            if (player.x > enemy.position.x && colidiu == false){
-                enemy.position.x += 0.5;
+            if (player.x > enemy.x){
+                enemy.x += 0.5;
                 if (enemy.state != RUNNING) {
                     enemy.state = RUNNING;
                     enemy.frame = 0;
                     enemy.maxFrames = 7;
                     enemy.frameTime = 0.1f;
                 }
-            } else if (player.x < enemy.position.x && colidiu == false){
-                enemy.position.x -= 0.5;
+            } else if (player.x < enemy.x){
+                enemy.x -= 0.5;
                 if (enemy.state != RUNNING) {
                     enemy.state = RUNNING;
                     enemy.frame = 0;
                     enemy.maxFrames = 7;
                     enemy.frameTime = 0.1f;
                 }
-            } else if(colidiu){
+            } else if(enemy_colide_player(enemy, player)){
                 if (enemy.state != ATTACK) {
                     enemy.state = ATTACK;
                     enemy.frame = 0;
@@ -637,6 +697,14 @@ int main(void){
                 .height = 10
             };
             DrawRectangleRec(collision_box, ColorAlpha(GREEN, 0.5f));
+
+            Rectangle collision_box_enemy = {
+                .x = enemy.x + (player.width * 2),
+                .y = enemy.y + (player.height * 6) - 10,
+                .width = enemy.width * 10,
+                .height = 10
+            };
+            DrawRectangleRec(collision_box_enemy, ColorAlpha(YELLOW, 0.5f));
 
             // Draw player bounds
             Rectangle player_bounds = {
