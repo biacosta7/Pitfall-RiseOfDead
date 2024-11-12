@@ -649,7 +649,8 @@ int main(void){
 
             // inimigo seguindo o player
             if (player.x > enemy.x && !enemy_colide_player(enemy, player)){
-                enemy.x += 0.5;
+                enemy.x += 2.0f;
+                enemy.flipRight = true;
                 if (enemy.state != RUNNING) {
                     enemy.state = RUNNING;
                     enemy.frame = 0;
@@ -657,7 +658,8 @@ int main(void){
                     enemy.frameTime = 0.1f;
                 }
             } else if (player.x < enemy.x && !enemy_colide_player(enemy, player)){
-                enemy.x -= 0.5;
+                enemy.x -= 2.0f;
+                enemy.flipRight = false;
                 if (enemy.state != RUNNING) {
                     enemy.state = RUNNING;
                     enemy.frame = 0;
@@ -730,7 +732,6 @@ int main(void){
 
                 // Desenha a textura atual na posição correspondente da plataforma
                 DrawTexture(platform_texture, platforms[i].x, platforms[i].y - whitespace, WHITE);
-                printf("%d\n", i);
             }
 
 
