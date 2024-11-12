@@ -243,8 +243,11 @@ void UpdateEnemyAnimation(Enemy *enemy, float deltaTime) {
         // Reset frame based on current state
         switch(enemy->state) {
             case RUNNING:
-                if (enemy->frame >= 7) enemy->frame = 0;
-                break;
+                if (enemy->frame >= 7) {
+                    enemy->frame = 0;
+                    enemy->frameTime = 0.5f;
+                    break;
+                }
                 
             case ATTACK:
                 if (enemy->frame >= 4) {
@@ -252,7 +255,7 @@ void UpdateEnemyAnimation(Enemy *enemy, float deltaTime) {
                     // Optionally return to IDLE after attack animation
                     enemy->state = IDLE;
                     enemy->maxFrames = 8;
-                    enemy->frameTime = 0.3f;
+                    enemy->frameTime = 1.0f;
                 }
                 break;
                 
@@ -317,7 +320,7 @@ int player_na_plataforma(Player player, Platform platforms[], int total_platform
     Rectangle player_rec = {
         .x = player.x + (player.width * 2),
         .y = player.y + (player.height * 6) - 10,
-        .width = player.width * 2,
+        .width = player.width + 10,
         .height = 10  // Small height for ground detection
     };
 
@@ -412,7 +415,7 @@ void UpdateEnemies(EnemySpawner enemies[], int count, Player player) {
                     enemies[i].enemy.state = RUNNING;
                     enemies[i].enemy.frame = 0;
                     enemies[i].enemy.maxFrames = 7;
-                    enemies[i].enemy.frameTime = 0.1f;
+                    enemies[i].enemy.frameTime = 0.2f;
                 }
             } 
             else if (player.x < enemies[i].enemy.x && !enemy_colide_player(enemies[i].enemy, player)){
@@ -422,7 +425,7 @@ void UpdateEnemies(EnemySpawner enemies[], int count, Player player) {
                     enemies[i].enemy.state = RUNNING;
                     enemies[i].enemy.frame = 0;
                     enemies[i].enemy.maxFrames = 7;
-                    enemies[i].enemy.frameTime = 0.1f;
+                    enemies[i].enemy.frameTime = 0.2f;
                 }
             }
             
@@ -440,7 +443,7 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
             enemy->state = RUNNING;
             enemy->frame = 0;
             enemy->maxFrames = 7;
-            enemy->frameTime = 0.1f;
+            enemy->frameTime = 0.3f;
         }
     } else if (player.x < enemy->x && !enemy_colide_player(*enemy, player)){
         enemy->x -= 2.0f;
@@ -449,7 +452,7 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
             enemy->state = RUNNING;
             enemy->frame = 0;
             enemy->maxFrames = 7;
-            enemy->frameTime = 0.1f;
+            enemy->frameTime = 0.3f;
         }
     } 
     else if(enemy_colide_player(*enemy, player)){
@@ -457,7 +460,7 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
             enemy->state = ATTACK;
             enemy->frame = 0;
             enemy->maxFrames = 4;
-            enemy->frameTime = 0.1f;
+            enemy->frameTime = 0.3f;
         }
     } else {
         if (enemy->state != IDLE) {
@@ -586,7 +589,7 @@ int main(void){
     int platform_x = floor_x;  // Continua após o chão // o que é isso hein???
 
     for(int i=0; i < total_platform_count; i++){
-        if(i%6 == 0){
+        if(i%7 == 6){ 
             platforms[i].x = platform_x;
             platforms[i].y = screenHeight - platform_height + whitespace;
             platforms[i].width = platform_width;
@@ -748,7 +751,7 @@ int main(void){
                     player.state = ATTACK;
                     player.frame = 0;
                     player.maxFrames = 5;
-                    player.frameTime = 0.05f;
+                    player.frameTime = 0.1f;
                 }
             }
             else if (!movingHorizontal && !player.isJumping) {
@@ -760,12 +763,9 @@ int main(void){
                 }
             }
 
-            
-
             aplica_gravidade_player(&player, platforms, total_platform_count, deltaTime);
             
             UpdatePlayerAnimation(&player, deltaTime);
-            //UpdateEnemyAnimation(&enemy, deltaTime);
 
             UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft, camera);
             UpdateEnemies(enemies, MAX_ENEMIES, player);
@@ -796,6 +796,15 @@ int main(void){
                 .height = 10
             };
             DrawRectangleRec(collision_box_enemy, ColorAlpha(YELLOW, 0.5f));
+
+
+            Rectangle platform_collision = {
+                .x = platform_collision.x,
+                .y = platform_collision.y,
+                .width = platform_collision.width / 3,
+                .height = platform_collision.height
+            };
+            DrawRectangleRec(platform_collision, ColorAlpha(PINK, 0.5f));
 
             // Draw player bounds
             Rectangle player_bounds = {
