@@ -102,6 +102,8 @@ typedef struct {
     Texture2D texture;
 } Platform;
 
+void aplica_gravidade_player(Player *player, Platform platforms[], int total_platform_count, float deltaTime);
+void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime);
 
 void DrawBackground(Texture2D background, int screenWidth, int screenHeight, Camera2D camera) {
     float scale;
@@ -363,48 +365,6 @@ bool enemy_colide_player(Enemy enemy, Player player){
     return false;
 }
 
-// Update and manage enemy spawning
-void UpdateEnemies(EnemySpawner enemies[], int count, Player player) {
-    float spawnTriggerDistance = 400.0f;  // Distance before spawn point when enemy should appear
-    
-    for(int i = 0; i < count; i++) {
-        if (!enemies[i].isActive) {
-            // Check if player is approaching this spawn point
-            if (player.x > (enemies[i].spawnX - spawnTriggerDistance)) {
-                enemies[i].isActive = true;
-                enemies[i].enemy.x = enemies[i].spawnX;
-                enemies[i].enemy.y = player.y;  // Or your ground level
-            }
-        }
-        else {
-            // Update active enemy
-            if (player.x > enemies[i].enemy.x && !enemy_colide_player(enemies[i].enemy, player)){
-                enemies[i].enemy.x += 2.0f;
-                enemies[i].enemy.flipRight = true;
-                if (enemies[i].enemy.state != RUNNING) {
-                    enemies[i].enemy.state = RUNNING;
-                    enemies[i].enemy.frame = 0;
-                    enemies[i].enemy.maxFrames = 7;
-                    enemies[i].enemy.frameTime = 0.2f;
-                }
-            } 
-            else if (player.x < enemies[i].enemy.x && !enemy_colide_player(enemies[i].enemy, player)){
-                enemies[i].enemy.x -= 2.0f;
-                enemies[i].enemy.flipRight = false;
-                if (enemies[i].enemy.state != RUNNING) {
-                    enemies[i].enemy.state = RUNNING;
-                    enemies[i].enemy.frame = 0;
-                    enemies[i].enemy.maxFrames = 7;
-                    enemies[i].enemy.frameTime = 0.2f;
-                }
-            }
-            
-            // Update enemy animation
-            UpdateEnemyAnimation(&enemies[i].enemy, GetFrameTime());
-        }
-    }
-}
-
 void UpdateEnemyPosition(Enemy *enemy, Player player) {
     if (player.x > enemy->x && !enemy_colide_player(*enemy, player)){
         enemy->x += 2.0f;
@@ -430,7 +390,7 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
             enemy->state = ATTACK;
             enemy->frame = 0;
             enemy->maxFrames = 4;
-            enemy->frameTime = 0.3f;
+            enemy->frameTime = 0.2f;
         }
     } else {
         if (enemy->state != IDLE) {
@@ -438,6 +398,27 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
             enemy->frame = 0;
             enemy->maxFrames = 8;
             enemy->frameTime = 0.3f;
+        }
+    }
+}
+
+// Update and manage enemy spawning
+void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *platforms, int total_platform_count) {
+    float spawnTriggerDistance = 400.0f;  // Distance before spawn point when enemy should appear
+    
+    for(int i = 0; i < count; i++) {
+        if (!enemies[i].isActive) {
+            // Check if player is approaching this spawn point
+            if (player.x > (enemies[i].spawnX - spawnTriggerDistance)) {
+                enemies[i].isActive = true;
+                enemies[i].enemy.x = enemies[i].spawnX;
+                enemies[i].enemy.y = player.y;  // Or your ground level
+            }
+        }
+        else {
+            aplica_gravidade_enemy(&enemies[i].enemy, platforms, total_platform_count, GetFrameTime());
+            UpdateEnemyPosition(&enemies[i].enemy, player); // Update active enemy
+            UpdateEnemyAnimation(&enemies[i].enemy, GetFrameTime()); // Update enemy animation
         }
     }
 }
@@ -482,7 +463,6 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_pla
     printf("Jump State: isJumping=%d,velocity.y=%f\n", 
            player->isJumping, player->velocityY);
 }
-
 
 void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime) {
     const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
@@ -749,17 +729,13 @@ int main(void){
             
             UpdatePlayerAnimation(&player, deltaTime);
 
-            // UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft, camera);
             DrawTexture(background_texture, background_x, 0, WHITE );
             DrawTexture(background2_texture, background2_x, 0, WHITE );
-            UpdateEnemies(enemies, MAX_ENEMIES, player);
+            UpdateEnemies(enemies, MAX_ENEMIES, player, platforms, total_platform_count);
             DrawPlayer(player);
 
             for(int i = 0; i < MAX_ENEMIES; i++) {
                 if(enemies[i].isActive) {
-                    UpdateEnemyPosition(&enemies[i].enemy, player);
-                    aplica_gravidade_enemy(&enemies[i].enemy, platforms, total_platform_count, deltaTime);
-                    UpdateEnemyAnimation(&enemies[i].enemy, GetFrameTime());
                     DrawEnemy(enemies[i].enemy);
                 }
             }
