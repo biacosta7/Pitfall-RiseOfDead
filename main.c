@@ -38,6 +38,7 @@ typedef struct{
     //int jump_strength;
     float velocityY; // velocidade vertical (para controlar o pulo)
     bool isJumping;
+    bool canJump;
     PersonagemState state;
     Texture2D idleTexture;
     Texture2D runTexture;
@@ -289,7 +290,7 @@ int player_na_plataforma(Player player, Platform platforms[], int total_platform
     Rectangle player_rec = {
         .x = player.x + (player.width * 2),
         .y = player.y + (player.height * 6) - 10,
-        .width = player.width + 10,
+        .width = player.width,
         .height = 10  // Small height for ground detection
     };
 
@@ -444,8 +445,10 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
 void aplica_gravidade_player(Player *player, Platform platforms[], int total_platform_count, float deltaTime) {
     const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
     
-    // Apply gravity with deltaTime
-    player->velocityY += GRAVITY * deltaTime;
+    // Apply gravity with deltaTime only if jumping or in air
+    if (player->isJumping || player->velocityY != 0) {
+        player->velocityY += GRAVITY * deltaTime;
+    }
 
     // Clamp fall speed
     if (player->velocityY > MAX_FALL_SPEED) {
@@ -462,17 +465,24 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_pla
         // If colliding with platform
         if (player->velocityY > 0) {  // Only if moving downward
             // Snap to platform top
-            player->y = platforms[current_platform].y - (player->height * 6);
-            player->velocityY = 0;
             player->isJumping = false;
+            player->canJump = true;    // Allow jumping when on platform
+            player->y = platforms[current_platform].y - (player->height * 6);
+            player->velocityY = 0.0;
         }
     } else {
-        // If in air, ensure jumping state is set
+        // If in air
+        player->canJump = false;       // Can't jump while in air
         if (player->velocityY != 0) {
             player->isJumping = true;
         }
     }
+
+    // Debug output to help track jump state
+    printf("Jump State: isJumping=%d,velocity.y=%f\n", 
+           player->isJumping, player->velocityY);
 }
+
 
 void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime) {
     const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
@@ -545,10 +555,10 @@ int main(void){
     int background2_x = 0;
 
     // definicões da plataforma
-    int whitespace = 30; // espaco em branco da imagem, essa "margem/padding"
+    int whitespace = 30; // espaco em branco da imagem, essa "margem/padding" do topo
 
     int platform_height = 190; // altura do chão
-    int platform_width = 180; // tamanho (largura) de cada plataforma
+    int platform_width = 200; // tamanho (largura) de cada plataforma
 
     int total_platform_count = ceil((float)worldWidth / (float)platform_width); // calcula quantos pedacos de chão são necessários pra cobrir toda a largura do mundo
     
@@ -578,6 +588,8 @@ int main(void){
         .width = 64,
         .height = 64,
         .state = IDLE,
+        .isJumping = false,
+        .canJump = true,
         .idleTexture = LoadTexture("assets/player/idle2.png"),
         .runTexture = LoadTexture("assets/player/run.png"),
         .jumpTexture = LoadTexture("assets/player/jump.png"),
@@ -676,8 +688,8 @@ int main(void){
             const float MOVE_SPEED = 5.0f; // constante velocidade player
 
             // movimento player
-            if (IsKeyPressed(KEY_W)) {
-                player.velocityY = -10.0f;
+            if (IsKeyPressed(KEY_W) && !player.isJumping) {
+                player.velocityY = -400.0f * GetFrameTime();
                 player.isJumping = true;
                 player.state = JUMPING;
                 player.frame = 0;
@@ -756,7 +768,7 @@ int main(void){
             Rectangle collision_box = {
                 .x = player.x + (player.width * 2),
                 .y = player.y + (player.height * 6) - 10,
-                .width = player.width * 3,
+                .width = player.width,
                 .height = 10
             };
             DrawRectangleRec(collision_box, ColorAlpha(GREEN, 0.5f));
