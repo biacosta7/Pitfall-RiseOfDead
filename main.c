@@ -584,7 +584,7 @@ int main(void){
     // cria player
     Player player = {
         .x = SCREEN_WIDTH / 2,
-        .y = 0,
+        .y = 175,
         .width = 64,
         .height = 64,
         .state = IDLE,
