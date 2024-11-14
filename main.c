@@ -132,8 +132,14 @@ void DrawBackground(Texture2D background, int screenWidth, int screenHeight, Cam
     DrawTextureEx(background, (Vector2){deslocamento_x, deslocamento_y}, 0, scale, WHITE);
 }
 
-void DrawLives(Player player) {
-    Vector2 livesPosition = { 20, 20 }; // Posição fixa no canto superior esquerdo da tela
+void DrawLives(Player player, Camera2D camera) {
+    // Keep Y position fixed at 20 pixels from top
+    // Only X position follows camera
+    Vector2 livesPosition = {
+        camera.target.x - (GetScreenWidth()/2) + 20,  // X follows camera
+        20  // Y stays fixed at top
+    };
+
     if (player.lives == 3) {
         DrawTexture(player.heartTexture3, livesPosition.x, livesPosition.y, WHITE);
     } else if (player.lives == 2) {
@@ -143,40 +149,6 @@ void DrawLives(Player player) {
     }
 }
 
-// atualiza o parallax
-void UpdateDrawParallax(BackgroundLayer *layers, int layerCount, float deltaTime, int screenWidth, int screenHeight, bool movingHorizontal, bool movingLeft, Camera2D camera) {
-    for (int i = 0; i < layerCount; i++) {
-        // Escala com base na altura da tela
-        float scale = (float)screenHeight / layers[i].texture.height;
-
-        // Ajusta a posição das camadas conforme a velocidade de movimento
-        if (movingHorizontal) {
-            if (movingLeft) {
-                layers[i].position.x += layers[i].speed * deltaTime;
-            } else {
-                layers[i].position.x -= layers[i].speed * deltaTime;
-            }
-        }
-
-        // Reseta a posição se a textura ultrapassar a tela
-        if (layers[i].position.x <= -(layers[i].texture.width * scale)) {
-            layers[i].position.x = 0;
-        }
-
-        // Centraliza horizontalmente caso a camada seja menor que a largura da tela
-        float deslocamento_x = 0;
-        if (layers[i].texture.width * scale < screenWidth) {
-            deslocamento_x = (screenWidth - (layers[i].texture.width * scale)) / 2;
-        }
-
-        // Aplica o offset da câmera com intensidade variável para efeito de profundidade
-        float parallaxdeslocamento_x = camera.offset.x * (0.1f + 0.05f * i);
-
-        // Desenha a textura duas vezes para criar um scroll contínuo
-        DrawTextureEx(layers[i].texture, (Vector2){layers[i].position.x + deslocamento_x + parallaxdeslocamento_x, 0}, 0, scale, WHITE);
-        DrawTextureEx(layers[i].texture, (Vector2){layers[i].position.x + (layers[i].texture.width * scale) + deslocamento_x + parallaxdeslocamento_x, 0}, 0, scale, WHITE);
-    }
-}
 
 void UpdatePlayerAnimation(Player *player, float deltaTime) {
     player->currentFrameTime += deltaTime;
@@ -538,16 +510,13 @@ int main(void){
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
     InitWindow(screenWidth, screenHeight, "Pitfall - Rise Of Dead");
-
-    BackgroundLayer layers[LAYER_COUNT] = {
-        { LoadTexture("assets/map/layers/bg1.png"), (Vector2){0, 0}, 50 },
-        { LoadTexture("assets/map/layers/bg3.png"), (Vector2){0, 0}, 100 },
-    };
     Texture2D backgroundTitle = LoadTexture("assets/map/layers/initialbackground.png");
     Texture2D floor_piece_texture = LoadTexture( "assets/map/floor.png");
     Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
     Texture2D platform1_texture = LoadTexture("assets/map/platform-floor.png");
     Texture2D platform2_texture = LoadTexture("assets/obstaculos/platform2.png");
+    Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
+    Texture2D background2_texture = LoadTexture( "assets/map/layers/bg2.png" );
 
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
@@ -570,6 +539,14 @@ int main(void){
     };
 
     int worldWidth = screenWidth * 10;
+
+    int background_width = 1820;
+    int background_overflow = background_width - screenWidth;
+    float background_ratio = 1 / ((float)(worldWidth - screenWidth) / (float)background_overflow);
+    float background2_ratio = 1.5f * (1 / ((float)(worldWidth - screenWidth) / (float)background_overflow)); // se move mais rápido
+    int background_x = 0;
+    int background2_x = 0;
+
     
     // definicões da plataforma
     int whitespace = 30; // espaco em branco da imagem, essa "margem/padding"
@@ -675,6 +652,7 @@ int main(void){
             }
         }
         else if(gameState == GAMEPLAY){
+
             // camera 2D
             BeginMode2D( camera );
 
@@ -692,6 +670,12 @@ int main(void){
             if( camera.offset.x < -(worldWidth - screenWidth) ) {
                 camera.offset.x = -(worldWidth - screenWidth);
             }
+
+            background_x = -camera.offset.x;
+            background_x -= background_x * background_ratio;
+
+            background2_x = -camera.offset.x;
+            background2_x -= background2_x * background2_ratio;
 
             const float MOVE_SPEED = 5.0f; // constante velocidade player
 
@@ -757,7 +741,9 @@ int main(void){
             
             UpdatePlayerAnimation(&player, deltaTime);
 
-            UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft, camera);
+            // UpdateDrawParallax(layers, LAYER_COUNT, GetFrameTime(), screenWidth, screenHeight, movingHorizontal, movingLeft, camera);
+            DrawTexture(background_texture, background_x, 0, WHITE );
+            DrawTexture(background2_texture, background2_x, 0, WHITE );
             UpdateEnemies(enemies, MAX_ENEMIES, player);
             DrawPlayer(player);
 
@@ -839,7 +825,7 @@ int main(void){
                     DrawText("Game Over!", 600, 400, 40, RED);
                 }
             }
-            DrawLives(player);
+            DrawLives(player, camera);
         }
         EndMode2D();
         EndDrawing();
@@ -858,10 +844,9 @@ int main(void){
     UnloadFont(fontePersonalizada);
     UnloadTexture(platform1_texture);
     UnloadTexture(platform2_texture);
+    UnloadTexture(background_texture);
+    UnloadTexture(background2_texture);
 
-    for (int i = 0; i < LAYER_COUNT; i++) {
-        UnloadTexture(layers[i].texture);
-    }
     // fecha a janela
     CloseWindow();
     return 0;
