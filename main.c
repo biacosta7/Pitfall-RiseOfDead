@@ -133,22 +133,19 @@ void DrawBackground(Texture2D background, int screenWidth, int screenHeight, Cam
 }
 
 void DrawLives(Player player, Camera2D camera) {
-    // Keep Y position fixed at 20 pixels from top
-    // Only X position follows camera
-    Vector2 livesPosition = {
-        camera.target.x - (GetScreenWidth()/2) + 20,  // X follows camera
-        20  // Y stays fixed at top
-    };
+    // Define a posição inicial para desenhar as vidas, ajustada pela posição da câmera
+    int posX = 20 - camera.offset.x;
+    int posY = 20 - camera.offset.y;
 
+    // Desenha o ícone de vida correto baseado na quantidade de vidas do jogador
     if (player.lives == 3) {
-        DrawTexture(player.heartTexture3, livesPosition.x, livesPosition.y, WHITE);
+        DrawTexture(player.heartTexture3, posX, posY, WHITE);
     } else if (player.lives == 2) {
-        DrawTexture(player.heartTexture2, livesPosition.x, livesPosition.y, WHITE);
+        DrawTexture(player.heartTexture2, posX, posY, WHITE);
     } else if (player.lives == 1) {
-        DrawTexture(player.heartTexture1, livesPosition.x, livesPosition.y, WHITE);
+        DrawTexture(player.heartTexture1, posX, posY, WHITE);
     }
 }
-
 
 void UpdatePlayerAnimation(Player *player, float deltaTime) {
     player->currentFrameTime += deltaTime;
@@ -547,7 +544,6 @@ int main(void){
     int background_x = 0;
     int background2_x = 0;
 
-    
     // definicões da plataforma
     int whitespace = 30; // espaco em branco da imagem, essa "margem/padding"
 
@@ -815,7 +811,7 @@ int main(void){
                 }
             }
 
-            if (colidiu && !player.invencivel) {
+            if (enemy_colide_player(enemy, player) && !player.invencivel) {
                 if (player.lives > 0) {
                     player.lives--;
                     player.invencivel = true;  // Ativa invencibilidade temporária
