@@ -34,8 +34,6 @@ typedef struct{
     int y;
     int width;
     int height;
-    //int speed;
-    //int jump_strength;
     float velocityY; // velocidade vertical (para controlar o pulo)
     bool isJumping;
     bool canJump;
@@ -65,6 +63,7 @@ typedef struct{
     int width;
     int height;
     float velocityY;
+    bool isAttacking;
     PersonagemState state;
     Texture2D idleTexture;
     Texture2D runTexture;
@@ -347,37 +346,54 @@ int enemy_na_plataforma(Enemy enemy, Platform platforms[], int total_platform_co
 bool enemy_colide_player(Enemy enemy, Player player){
     Rectangle enemy_rec = {
         .x = enemy.x + (enemy.width * 2),
-        .y = enemy.y + (enemy.height * 6) - 10,
+        .y = enemy.y,
         .width = enemy.width * 3,
         .height = 10 
     };
 
     Rectangle player_rec = {
         .x = player.x + (player.width * 2),
-        .y = player.y + (player.height * 6) - 10,
+        .y = player.y,
         .width = player.width * 3,
         .height = 10 
     };
+    
+    printf("Enemy: x=%f, y=%f, Player: x=%f, y=%f\n", 
+           enemy_rec.x, enemy_rec.y, player_rec.x, player_rec.y);
 
-    if(CheckCollisionRecs(enemy_rec, player_rec)) {
-        return true;
-    }
-    return false;
+    return CheckCollisionRecs(enemy_rec, player_rec);
+    
 }
 
 void UpdateEnemyPosition(Enemy *enemy, Player player) {
-    if (player.x > enemy->x && !enemy_colide_player(*enemy, player)){
+    bool is_colliding = enemy_colide_player(*enemy, player);
+    printf("Collision: %d, IsAttacking: %d\n", is_colliding, enemy->isAttacking);
+
+
+    if (is_colliding){
+        enemy->isAttacking = true;
+        if (enemy->state != ATTACK) {
+            enemy->state = ATTACK;
+            enemy->frame = 0;
+            enemy->maxFrames = 4;
+            enemy->frameTime = 0.2f;
+        }
+    }
+    
+    else if (player.x > enemy->x && !is_colliding){
         enemy->x += 2.0f;
         enemy->flipRight = true;
+        enemy->isAttacking = false;
         if (enemy->state != RUNNING) {
             enemy->state = RUNNING;
             enemy->frame = 0;
             enemy->maxFrames = 7;
             enemy->frameTime = 0.3f;
         }
-    } else if (player.x < enemy->x && !enemy_colide_player(*enemy, player)){
+    } else if (player.x < enemy->x && !is_colliding){
         enemy->x -= 2.0f;
         enemy->flipRight = false;
+        enemy->isAttacking = false;
         if (enemy->state != RUNNING) {
             enemy->state = RUNNING;
             enemy->frame = 0;
@@ -385,14 +401,8 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
             enemy->frameTime = 0.3f;
         }
     } 
-    else if(enemy_colide_player(*enemy, player)){
-        if (enemy->state != ATTACK) {
-            enemy->state = ATTACK;
-            enemy->frame = 0;
-            enemy->maxFrames = 4;
-            enemy->frameTime = 0.2f;
-        }
-    } else {
+    else {
+        enemy->isAttacking = false;
         if (enemy->state != IDLE) {
             enemy->state = IDLE;
             enemy->frame = 0;
@@ -458,10 +468,6 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_pla
             player->isJumping = true;
         }
     }
-
-    // Debug output to help track jump state
-    printf("Jump State: isJumping=%d,velocity.y=%f\n", 
-           player->isJumping, player->velocityY);
 }
 
 void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime) {
@@ -593,6 +599,7 @@ int main(void){
         .width = 64,
         .height = 64,
         .state = IDLE,
+        .isAttacking = false,
         .idleTexture = LoadTexture("assets/zombie/Idle.png"),
         .runTexture = LoadTexture("assets/zombie/run.png"),
         .attackTexture = LoadTexture("assets/zombie/attack.png"),
@@ -799,16 +806,22 @@ int main(void){
                 }
             }
 
-            if (enemy_colide_player(enemy, player) && !player.invencivel) {
-                if (player.lives > 0) {
-                    player.lives--;
-                    player.invencivel = true;  // Ativa invencibilidade temporária
-                    player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
-                }
-                else if(player.lives == 0){
-                    DrawText("Game Over!", 600, 400, 40, RED);
+            for (int i = 0; i < MAX_ENEMIES; i++) {
+                if (enemies[i].isActive && enemies[i].enemy.isAttacking && !player.invencivel) {
+                    if (!player.invencivel) {
+                        if (player.lives > 0) {
+                            player.lives--;
+                            player.invencivel = true;  // Ativa invencibilidade temporária
+                            player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
+                            printf("Player lives: %d\n", player.lives);
+                        }
+                        else if(player.lives == 0){
+                            DrawText("Game Over!", 600, 400, 40, RED);
+                        }
+                    }
                 }
             }
+            
             DrawLives(player, camera);
         }
         EndMode2D();
