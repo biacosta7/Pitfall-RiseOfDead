@@ -437,9 +437,7 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_pla
     const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
     
     // Apply gravity with deltaTime only if jumping or in air
-    if (player->isJumping || player->velocityY != 0) {
-        player->velocityY += GRAVITY * deltaTime;
-    }
+    player->velocityY += GRAVITY * deltaTime;
 
     // Clamp fall speed
     if (player->velocityY > MAX_FALL_SPEED) {
