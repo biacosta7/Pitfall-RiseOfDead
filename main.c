@@ -824,7 +824,7 @@ int main(void){
             
             if(player.y > 180){
                 player.lives = 0;
-                gameover = true;
+                isGameOver = true;
             }
             printf("player.y: %d\n", player.y);
 
