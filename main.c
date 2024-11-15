@@ -603,12 +603,12 @@ void UpdateZombieHands(ZombieHand hands[], int count, Player player, Camera2D ca
     }
 }
 
-void DrawZombieHands(ZombieHand hands[], int count, Camera2D camera) {
+void DrawZombieHands(ZombieHand hands[], int count) {
     for(int i = 0; i < count; i++) {
         if (hands[i].isActive) {
             Rectangle source = { 0, 0, hands[i].width, hands[i].height };
             Rectangle dest = { 
-                hands[i].x - camera.target.x + camera.offset.x,
+                hands[i].x,
                 hands[i].y,
                 hands[i].width,
                 hands[i].height 
@@ -929,7 +929,7 @@ int main(void){
             }
 
             // draw hand
-            DrawZombieHands(zombie_hands, MAX_ZOMBIE_HANDS, camera);
+            DrawZombieHands(zombie_hands, MAX_ZOMBIE_HANDS);
 
             if (player.invencivel) {
                 player.invencibilidadeTimer -= GetFrameTime();
