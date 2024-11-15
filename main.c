@@ -503,6 +503,8 @@ int main(void){
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
     InitWindow(screenWidth, screenHeight, "Pitfall - Rise Of Dead");
+    double startTime = 0.0;
+    bool timeStarted = false;
     Texture2D backgroundTitle = LoadTexture("assets/map/layers/initialbackground.png");
     Texture2D floor_piece_texture = LoadTexture( "assets/map/floor.png");
     Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
@@ -510,7 +512,6 @@ int main(void){
     Texture2D platform2_texture = LoadTexture("assets/obstaculos/platform2.png");
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
     Texture2D background2_texture = LoadTexture( "assets/map/layers/bg2.png" );
-
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
 
@@ -627,6 +628,11 @@ int main(void){
         ClearBackground(RAYWHITE);
         if(gameState == START_SCREEN){
             BeginDrawing();
+            if(IsKeyPressed(KEY_ENTER)){
+                gameState = GAMEPLAY;
+                startTime = GetTime(); //momento do começo do jogo
+                timeStarted = true;
+            }
             int posXtitulo = 420;
             int postYtitulo = 40;
             int posXhistoria = 155;
@@ -642,15 +648,17 @@ int main(void){
             DrawTextEx(fontePersonalizada, tituloDoJogo, posTitulo, 40, 1, BLACK); //posicao X, posicao Y, tamanho fonte, cor
             DrawTextEx(fontePersonalizada, historiaDoJogo, posHistoria, 30, 1, WHITE);
             DrawText("Pressione ENTER para iniciar a corrida!", 325, 600, 30, RED);
-            if(IsKeyPressed(KEY_ENTER)){
-                gameState = GAMEPLAY;
-            }
         }
         else if(gameState == GAMEPLAY){
-
+            if (!timeStarted) {
+                startTime = GetTime(); // Garante que o tempo de início é capturado apenas uma vez
+                timeStarted = true;
+            }
+            double currentTime = GetTime();
+            double elapsedTime = currentTime - startTime;  // Tempo decorrido
+            printf("Segundos: %f", elapsedTime);
             // camera 2D
             BeginMode2D( camera );
-
             if( player.x > screenWidth * 0.1 ) {
                 camera.offset.x = -(player.x - screenWidth * 0.1);
 
@@ -817,12 +825,15 @@ int main(void){
                         }
                         else if(player.lives == 0){
                             DrawText("Game Over!", 600, 400, 40, RED);
+                            //DrawText(TextFormat("Tempo final: %.2f segundos", GetTime() - startTime), 600, 400, 40, RED);
                         }
                     }
                 }
             }
             
             DrawLives(player, camera);
+            //DrawText(TextFormat("Tempo: %.2f segundos", elapsedTime), 100, 400, 40, RED);
+            
         }
         EndMode2D();
         EndDrawing();
