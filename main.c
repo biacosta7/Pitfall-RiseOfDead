@@ -12,7 +12,7 @@
 #define GRAVITY 15.0f
 #define MAX_ENEMIES 5
 
-typedef enum { IDLE, RUNNING, JUMPING, ATTACK } PersonagemState;
+typedef enum { IDLE, RUNNING, JUMPING, ATTACK, DEAD } PersonagemState;
 typedef enum { START_SCREEN, GAMEPLAY } GameState;
 const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou\n\n" 
                                 "uma equipe de cientistas e após anos de pesquisa em um projeto\n\n"
@@ -53,6 +53,7 @@ typedef struct{
     Texture2D heartTexture1;
     bool invencivel; //tempo de invencibilidade logo apos levar uma colisao
     float invencibilidadeTimer; // tempo que dura a invencibilidade
+    bool isAttacking;
 } Player;
 
 
@@ -74,6 +75,8 @@ typedef struct{
     int maxFrames;       // Número de frames na spritesheet
     bool flipRight; // controla a direção
     int enemyLives;
+    Texture2D deadTexture;
+    bool isDead;
 } Enemy;
 
 typedef struct {
@@ -312,7 +315,16 @@ void UpdateEnemyAnimation(Enemy *enemy, float deltaTime) {
             case IDLE:
                 if (enemy->frame >= 8) enemy->frame = 0;
                 break;
-                
+            
+            case DEAD:
+                if (enemy->frame < 4) { // Avança os frames apenas até o último
+                    enemy->frame++;
+                }
+                // Quando atingir o último frame, fica parado nele
+                if (enemy->frame >= 4) {
+                    enemy->frame = 4; // Fixa no último frame
+                }
+                break;
             default:
                 if (enemy->frame >= enemy->maxFrames) enemy->frame = 0;
                 break;
@@ -329,6 +341,9 @@ void DrawEnemy(Enemy enemy) {
             break;
         case ATTACK:
             texture = enemy.attackTexture;
+            break;
+        case DEAD:
+            texture = enemy.deadTexture;
             break;
         case IDLE:
         default:
@@ -435,10 +450,44 @@ bool enemy_colide_player(Enemy enemy, Player player){
     
 }
 
+bool player_colide_enemy(Enemy enemy, Player player){
+    Rectangle player_rec = {
+        .x = player.x + (player.width * 2),
+        .y = player.y,
+        .width = player.width * 3,
+        .height = 10 
+    };
+
+    Rectangle enemy_rec = {
+        .x = enemy.x + (enemy.width * 2),
+        .y = enemy.y,
+        .width = enemy.width * 3,
+        .height = 10 
+    };
+    return CheckCollisionRecs(player_rec, enemy_rec);
+}
+
 void UpdateEnemyPosition(Enemy *enemy, Player player) {
+    if(enemy -> isDead){
+        if(enemy->state != DEAD){
+            enemy->state = DEAD;
+            enemy->frame = 0;
+            enemy->maxFrames = 5;
+            enemy->frameTime = 0.2f;
+        }
+        return;
+    }
     bool is_colliding = enemy_colide_player(*enemy, player);
 
     if (is_colliding){
+        if(player.isAttacking){
+            enemy->isAttacking = false;
+            enemy->isDead = true;
+            enemy->state = DEAD;
+            enemy->frame = 0;
+            enemy->maxFrames = 5;
+            enemy->frameTime = 0.1f;
+        }
         enemy->isAttacking = true;
         if (enemy->state != ATTACK) {
             enemy->state = ATTACK;
@@ -678,6 +727,7 @@ int main(void){
         .currentFrameTime = 0.0f,
         .flipRight = true,
         .velocityY = 0,
+        .deadTexture = LoadTexture("assets/zombie/Dead.png"),
     };
 
     EnemySpawner enemies[MAX_ENEMIES];
@@ -799,6 +849,10 @@ int main(void){
                     player.frame = 0;
                     player.maxFrames = 5;
                     player.frameTime = 0.1f;
+                    player.isAttacking = true;
+                    if(&player_colide_enemy){
+                        enemy.state = DEAD;
+                    }
                 }
             }
             else if (!movingHorizontal && !player.isJumping) {
@@ -884,6 +938,12 @@ int main(void){
                             isGameOver = true;
                         }
                     }
+                }
+                else if(enemies[i].isActive && player.isAttacking){
+                    enemy.state = DEAD;
+                }
+                if(enemy.isDead && enemy.frame == 4){
+                    enemy.x = -1000;
                 }
             }
             DrawLives(player, camera);
