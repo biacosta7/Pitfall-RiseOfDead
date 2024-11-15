@@ -182,6 +182,9 @@ ZombieHand zombie_hands[MAX_ZOMBIE_HANDS];
 
 void aplica_gravidade_player(Player *player, Platform platforms[], int total_ground_count, float deltaTime);
 void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_ground_count, float deltaTime);
+void DrawZombieHands(ZombieHand hands[], int count);
+void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colidiuHand);
+bool player_colide_hand(ZombieHand hand, Player player);
 
 void DrawBackground(Texture2D background, int screenWidth, int screenHeight, Camera2D camera) {
     float scale;
@@ -578,7 +581,7 @@ void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_ground
 }
 
 void InitZombieHands(ZombieHand hands[], int count, int screenWidth, int screenHeight, Texture2D zombiehand_texture, int platform_height) {
-    float spawnDistance = 800.0f;
+    float spawnDistance = 760.0f;
   
     for(int i = 0; i < count; i++) {
         hands[i].x = (i + 1) * spawnDistance;
@@ -591,13 +594,20 @@ void InitZombieHands(ZombieHand hands[], int count, int screenWidth, int screenH
     }
 }
 
-void UpdateZombieHands(ZombieHand hands[], int count, Player player, Camera2D camera) {
-    float spawnTriggerDistance = 400.0f;
+void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colidiuHand) {
+    float spawnTriggerDistance = 300.0f;
     
     for(int i = 0; i < count; i++) {
         if (!hands[i].isActive) {
             if (player.x > (hands[i].initialX - spawnTriggerDistance)) {
                 hands[i].isActive = true;
+            }
+
+            else {
+                if(player_colide_hand(hands[i], player)){
+                    *colidiuHand = true;
+                } // verifica se colidiu com o player
+                
             }
         }
     }
@@ -616,6 +626,25 @@ void DrawZombieHands(ZombieHand hands[], int count) {
             DrawTexturePro(hands[i].texture, source, dest, (Vector2){0, 0}, 0.0f, WHITE);
         }
     }
+}
+
+bool player_colide_hand(ZombieHand hand, Player player){
+    Rectangle hand_rec = {
+        .x = hand.x + (hand.width * 2),
+        .y = hand.y,
+        .width = hand.width * 3,
+        .height = 10 
+    };
+
+    Rectangle player_rec = {
+        .x = player.x + (player.width * 2),
+        .y = player.y,
+        .width = player.width * 3,
+        .height = 10 
+    };
+
+    return CheckCollisionRecs(hand_rec, player_rec);
+    
 }
 
 int main(void){
@@ -743,6 +772,7 @@ int main(void){
         bool colidiu = false;
         bool movingHorizontal = false;
         bool movingLeft = false;
+        bool colidiuHand = false;
         float deltaTime = GetFrameTime();
 
         // draw the game
@@ -818,7 +848,6 @@ int main(void){
                 player.frameTime = 0.2f;
             }
             
-            printf("player.y: %d\n", player.y);
             // Handle horizontal movement
             if (IsKeyDown(KEY_A)) {
                 player.x -= MOVE_SPEED;
@@ -880,13 +909,20 @@ int main(void){
                 isGameOver = true;
             }
 
+            if(colidiuHand){
+                printf("A MAO PEGOU O PE\n");
+                isGameOver = true;
+            }
+
             UpdatePlayerAnimation(&player, deltaTime);
 
             DrawTexture(background_texture, background_x, 0, WHITE );
             DrawTexture(background2_texture, background2_x, 0, WHITE );
             UpdateEnemies(enemies, MAX_ENEMIES, player, platforms, total_ground_count);
-            UpdateZombieHands(zombie_hands, MAX_ZOMBIE_HANDS, player, camera);
+            UpdateZombieHands(zombie_hands, MAX_ZOMBIE_HANDS, player, &colidiuHand);
             DrawPlayer(player);
+
+            
 
             for(int i = 0; i < MAX_ENEMIES; i++) {
                 if(enemies[i].isActive) {
