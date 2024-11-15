@@ -148,6 +148,18 @@ void DrawLives(Player player, Camera2D camera) {
         DrawTexture(player.heartTexture1, posX, posY, WHITE);
     }
 }
+void DrawTimer(Camera2D camera, int timerValue) {
+    // Define a posição do timer ajustada pela câmera
+    int posX = 20 - camera.offset.x;
+    int posY = 20 - camera.offset.y;
+
+    // Converte o valor do timer para string
+    char timerText[10];
+    snprintf(timerText, sizeof(timerText), "%d", timerValue);
+
+    // Desenha o texto na posição ajustada
+    DrawText(timerText, posX, posY, 20, RED);
+}
 
 void UpdatePlayerAnimation(Player *player, float deltaTime) {
     player->currentFrameTime += deltaTime;
@@ -499,6 +511,7 @@ void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platfo
 
 
 int main(void){
+    bool isGameOver = false;
     // cria window
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
@@ -617,7 +630,6 @@ int main(void){
     
     // game loop
     while (!WindowShouldClose()){
-
         bool colidiu = false;
         bool movingHorizontal = false;
         bool movingLeft = false;
@@ -632,6 +644,7 @@ int main(void){
                 gameState = GAMEPLAY;
                 startTime = GetTime(); //momento do começo do jogo
                 timeStarted = true;
+                isGameOver = false;
             }
             int posXtitulo = 420;
             int postYtitulo = 40;
@@ -650,13 +663,15 @@ int main(void){
             DrawText("Pressione ENTER para iniciar a corrida!", 325, 600, 30, RED);
         }
         else if(gameState == GAMEPLAY){
+            double elapsedTime;
             if (!timeStarted) {
                 startTime = GetTime(); // Garante que o tempo de início é capturado apenas uma vez
                 timeStarted = true;
             }
-            double currentTime = GetTime();
-            double elapsedTime = currentTime - startTime;  // Tempo decorrido
-            printf("Segundos: %f", elapsedTime);
+            if (!isGameOver) {
+                double currentTime = GetTime();
+                elapsedTime = currentTime - startTime; // Atualiza o tempo decorrido
+            }
             // camera 2D
             BeginMode2D( camera );
             if( player.x > screenWidth * 0.1 ) {
@@ -824,16 +839,17 @@ int main(void){
                             printf("Player lives: %d\n", player.lives);
                         }
                         else if(player.lives == 0){
-                            DrawText("Game Over!", 600, 400, 40, RED);
-                            //DrawText(TextFormat("Tempo final: %.2f segundos", GetTime() - startTime), 600, 400, 40, RED);
+                            isGameOver = true;
                         }
                     }
                 }
             }
             
             DrawLives(player, camera);
-            //DrawText(TextFormat("Tempo: %.2f segundos", elapsedTime), 100, 400, 40, RED);
-            
+            DrawTimer(camera, elapsedTime);
+            if(isGameOver){
+                DrawText("Game Over!", 600, 400, 40, RED);
+            }
         }
         EndMode2D();
         EndDrawing();
