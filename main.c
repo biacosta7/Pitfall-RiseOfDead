@@ -89,7 +89,7 @@ typedef struct {
 } BackgroundLayer;
 
 typedef enum {
-    PLATFORM,
+    PIT,
     FLOOR,
 } PlatformType;
 
@@ -168,8 +168,8 @@ typedef struct {
 //     fclose(list);
 // }
 
-void aplica_gravidade_player(Player *player, Platform platforms[], int total_platform_count, float deltaTime);
-void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime);
+void aplica_gravidade_player(Player *player, Platform pits[], int total_ground_count, float deltaTime);
+void aplica_gravidade_enemy(Enemy *enemy, Platform pits[], int total_ground_count, float deltaTime);
 
 void DrawBackground(Texture2D background, int screenWidth, int screenHeight, Camera2D camera) {
     float scale;
@@ -366,7 +366,7 @@ void InitEnemySpawners(EnemySpawner enemies[], int count, Enemy baseEnemy) {
     }
 }
 
-int player_na_plataforma(Player player, Platform platforms[], int total_platform_count) {
+int player_no_pit(Player player, Platform pits[], int total_ground_count) {
     Rectangle player_rec = {
         .x = player.x + (player.width * 2),
         .y = player.y + (player.height * 6) - 10,
@@ -374,16 +374,16 @@ int player_na_plataforma(Player player, Platform platforms[], int total_platform
         .height = 10  // Small height for ground detection
     };
 
-    for(int i = 0; i < total_platform_count; i++) {
-        Rectangle platform_rec = {
-            .x = platforms[i].x,
-            .y = platforms[i].y,
-            .width = platforms[i].width,
-            .height = platforms[i].height
+    for(int i = 0; i < total_ground_count; i++) {
+        Rectangle pit_rec = {
+            .x = pits[i].x,
+            .y = pits[i].y,
+            .width = pits[i].width,
+            .height = pits[i].height
         };
 
-        if(CheckCollisionRecs(player_rec, platform_rec)) {
-            if (platforms[i].type == FLOOR){
+        if(CheckCollisionRecs(player_rec, pit_rec)) {
+            if (pits[i].type == FLOOR){
                 return i;
             }
         }
@@ -391,7 +391,7 @@ int player_na_plataforma(Player player, Platform platforms[], int total_platform
     return -1;
 }
 
-int enemy_na_plataforma(Enemy enemy, Platform platforms[], int total_platform_count) {
+int enemy_no_pit(Enemy enemy, Platform pits[], int total_ground_count) {
     Rectangle enemy_rec = {
         .x = enemy.x + (enemy.width * 2),
         .y = enemy.y + (enemy.height * 6) - 10,
@@ -399,16 +399,16 @@ int enemy_na_plataforma(Enemy enemy, Platform platforms[], int total_platform_co
         .height = 10 
     };
 
-    for(int i = 0; i < total_platform_count; i++) {
-        Rectangle platform_rec = {
-            .x = platforms[i].x,
-            .y = platforms[i].y,
-            .width = platforms[i].width,
-            .height = platforms[i].height
+    for(int i = 0; i < total_ground_count; i++) {
+        Rectangle pit_rec = {
+            .x = pits[i].x,
+            .y = pits[i].y,
+            .width = pits[i].width,
+            .height = pits[i].height
         };
 
-        if(CheckCollisionRecs(enemy_rec, platform_rec)) {
-            if (platforms[i].type == FLOOR){
+        if(CheckCollisionRecs(enemy_rec, pit_rec)) {
+            if (pits[i].type == FLOOR){
                 return i;
             }
         } 
@@ -481,7 +481,7 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
 }
 
 // Update and manage enemy spawning
-void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *platforms, int total_platform_count) {
+void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *pits, int total_ground_count) {
     float spawnTriggerDistance = 400.0f;  // Distance before spawn point when enemy should appear
     
     for(int i = 0; i < count; i++) {
@@ -494,18 +494,18 @@ void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *p
             }
         }
         else {
-            aplica_gravidade_enemy(&enemies[i].enemy, platforms, total_platform_count, GetFrameTime());
+            aplica_gravidade_enemy(&enemies[i].enemy, pits, total_ground_count, GetFrameTime());
             UpdateEnemyPosition(&enemies[i].enemy, player); // Update active enemy
             UpdateEnemyAnimation(&enemies[i].enemy, GetFrameTime()); // Update enemy animation
         }
     }
 }
 
-void aplica_gravidade_player(Player *player, Platform platforms[], int total_platform_count, float deltaTime) {
+void aplica_gravidade_player(Player *player, Platform pits[], int total_ground_count, float deltaTime) {
     const float MAX_FALL_SPEED = 10.0f;
     
-    int current_platform = player_na_plataforma(*player, platforms, total_platform_count);
-    bool on_floor = (current_platform != -1); // Player is over a FLOOR type platform
+    int current_pit = player_no_pit(*player, pits, total_ground_count);
+    bool on_floor = (current_pit != -1); // Player is over a FLOOR type pit
     
     // Apply gravity if not on floor, regardless of jump state
     if (!on_floor || player->isJumping) {
@@ -521,14 +521,14 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_pla
     player->y += player->velocityY * deltaTime * 60.0f;
     
     // Check floor collision again after movement
-    current_platform = player_na_plataforma(*player, platforms, total_platform_count);
+    current_pit = player_no_pit(*player, pits, total_ground_count);
 
-    if (current_platform != -1) {
+    if (current_pit != -1) {
         // If colliding with floor
         if (player->velocityY > 0) {  // Only if moving downward
             player->isJumping = false;
             player->canJump = true;    
-            player->y = platforms[current_platform].y - (player->height * 6);
+            player->y = pits[current_pit].y - (player->height * 6);
             player->velocityY = 0.0;
         }
     } else {
@@ -538,7 +538,7 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_pla
     }
 }
 
-void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime) {
+void aplica_gravidade_enemy(Enemy *enemy, Platform pits[], int total_ground_count, float deltaTime) {
     const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
     
     // Apply gravity with deltaTime
@@ -552,14 +552,14 @@ void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platfo
     // Update position
     enemy->y += enemy->velocityY * deltaTime * 60.0f;
     
-    // Check platform collision
-    int current_platform_enemy = enemy_na_plataforma(*enemy, platforms, total_platform_count);
+    // Check pit collision
+    int current_pit_enemy = enemy_no_pit(*enemy, pits, total_ground_count);
 
-    if (current_platform_enemy != -1) {
-        // If colliding with platform
+    if (current_pit_enemy != -1) {
+        // If colliding with pit
         if (enemy->velocityY > 0) {  // Only if moving downward
-            // Snap to platform top
-            enemy->y = platforms[current_platform_enemy].y - (enemy->height * 6);
+            // Snap to pit top
+            enemy->y = pits[current_pit_enemy].y - (enemy->height * 6);
             enemy->velocityY = 0;
         }
     }
@@ -577,8 +577,8 @@ int main(void){
     Texture2D backgroundTitle = LoadTexture("assets/map/layers/initialbackground.png");
     Texture2D floor_piece_texture = LoadTexture( "assets/map/floor.png");
     Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
-    Texture2D platform1_texture = LoadTexture("assets/map/platform-floor.png");
-    Texture2D platform2_texture = LoadTexture("assets/obstaculos/platform2.png");
+    Texture2D pit1_texture = LoadTexture("assets/map/platform-floor.png");
+    Texture2D pit2_texture = LoadTexture("assets/obstaculos/platform2.png");
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
     Texture2D background2_texture = LoadTexture( "assets/map/layers/bg2.png" );
     SetTargetFPS(60);
@@ -610,31 +610,31 @@ int main(void){
     int background_x = 0;
     int background2_x = 0;
 
-    // definicões da plataforma
+    // definicões da pit
     int whitespace = 30; // espaco em branco da imagem, essa "margem/padding" do topo
 
-    int platform_height = 190; // altura do chão
-    int platform_width = 200; // tamanho (largura) de cada plataforma
+    int pit_height = 190; // altura do chão
+    int pit_width = 200; // tamanho (largura) de cada pit
 
-    int total_platform_count = ceil((float)worldWidth / (float)platform_width); // calcula quantos pedacos de chão são necessários pra cobrir toda a largura do mundo
+    int total_ground_count = ceil((float)worldWidth / (float)pit_width); // calcula quantos pedacos de chão são necessários pra cobrir toda a largura do mundo
     
     // criando chão (floor)
-    Platform platforms[total_platform_count];
+    Platform pits[total_ground_count];
     
-    // Alternância das plataformas sem espaços entre elas
-    int platform_x = 0;  // acumula 
+    // Alternância das pits sem espaços entre elas
+    int pit_x = 0;  // acumula 
 
-    for(int i=0; i < total_platform_count; i++){
-        platforms[i].width = platform_width;
-        platforms[i].height = platform_height;
-        platforms[i].y = screenHeight - platform_height + whitespace;
-        platforms[i].x = platform_x;
+    for(int i=0; i < total_ground_count; i++){
+        pits[i].width = pit_width;
+        pits[i].height = pit_height;
+        pits[i].y = screenHeight - pit_height + whitespace;
+        pits[i].x = pit_x;
         if(i%7 == 6){ 
-            platforms[i].type = PLATFORM; // Plataforma
+            pits[i].type = PIT; // Plataforma
         } else {
-            platforms[i].type = FLOOR; // Floor
+            pits[i].type = FLOOR; // Floor
         }
-        platform_x += platform_width;
+        pit_x += pit_width;
     }
 
     // cria player
@@ -811,7 +811,7 @@ int main(void){
                 }
             }
 
-            aplica_gravidade_player(&player, platforms, total_platform_count, deltaTime);
+            aplica_gravidade_player(&player, pits, total_ground_count, deltaTime);
             
             if(player.y > 180){
                 player.lives = 0;
@@ -824,7 +824,7 @@ int main(void){
 
             DrawTexture(background_texture, background_x, 0, WHITE );
             DrawTexture(background2_texture, background2_x, 0, WHITE );
-            UpdateEnemies(enemies, MAX_ENEMIES, player, platforms, total_platform_count);
+            UpdateEnemies(enemies, MAX_ENEMIES, player, pits, total_ground_count);
             DrawPlayer(player);
 
             for(int i = 0; i < MAX_ENEMIES; i++) {
@@ -851,13 +851,13 @@ int main(void){
             DrawRectangleRec(collision_box_enemy, ColorAlpha(YELLOW, 0.5f));
 
 
-            Rectangle platform_collision = {
-                .x = platform_collision.x,
-                .y = platform_collision.y,
-                .width = platform_collision.width / 3,
-                .height = platform_collision.height
+            Rectangle pit_collision = {
+                .x = pit_collision.x,
+                .y = pit_collision.y,
+                .width = pit_collision.width / 3,
+                .height = pit_collision.height
             };
-            DrawRectangleRec(platform_collision, ColorAlpha(PINK, 0.5f));
+            DrawRectangleRec(pit_collision, ColorAlpha(PINK, 0.5f));
 
             // Draw player bounds
             Rectangle player_bounds = {
@@ -869,19 +869,19 @@ int main(void){
             DrawRectangleLines(player_bounds.x, player_bounds.y, 
                             player_bounds.width, player_bounds.height, RED);
 
-            //desenhar floor/platform
-            for (int i = 0; i < total_platform_count; i++) {
-                Texture2D platform_texture;
+            //desenhar floor/pit
+            for (int i = 0; i < total_ground_count; i++) {
+                Texture2D pit_texture;
                 
-                // Alterna entre as texturas conforme o tipo da plataforma
-                if (platforms[i].type == FLOOR) {
-                    platform_texture = platform1_texture;  // Usa `platform1_texture` para FLOOR
+                // Alterna entre as texturas conforme o tipo da pit
+                if (pits[i].type == FLOOR) {
+                    pit_texture = pit1_texture;  // Usa `pit1_texture` para FLOOR
                 } else {
-                    platform_texture = platform2_texture;  // Usa `platform2_texture` para PLATFORM
+                    pit_texture = pit2_texture;  // Usa `pit2_texture` para PIT
                 }
 
-                // Desenha a textura atual na posição correspondente da plataforma
-                DrawTexture(platform_texture, platforms[i].x, platforms[i].y - whitespace, WHITE);
+                // Desenha a textura atual na posição correspondente da pit
+                DrawTexture(pit_texture, pits[i].x, pits[i].y - whitespace, WHITE);
             }
 
 
@@ -935,8 +935,8 @@ int main(void){
     UnloadTexture(backgroundTitle);
     UnloadTexture(floor_piece_texture);
     UnloadFont(fontePersonalizada);
-    UnloadTexture(platform1_texture);
-    UnloadTexture(platform2_texture);
+    UnloadTexture(pit1_texture);
+    UnloadTexture(pit2_texture);
     UnloadTexture(background_texture);
     UnloadTexture(background2_texture);
 
