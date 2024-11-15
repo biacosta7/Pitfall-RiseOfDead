@@ -539,9 +539,9 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_gro
         // If colliding with floor
         if (player->velocityY > 0) {  // Only if moving downward
             player->isJumping = false;
-            player->canJump = true;    
             player->y = platforms[current_platform].y - (player->height * 6);
             player->velocityY = 0.0;
+            player->canJump = true;    
         }
     } else {
         if (player->velocityY != 0) {
@@ -617,9 +617,6 @@ void DrawZombieHands(ZombieHand hands[], int count, Camera2D camera) {
         }
     }
 }
-
-
-
 
 int main(void){
     bool isGameOver = false;
@@ -814,12 +811,14 @@ int main(void){
             if (IsKeyPressed(KEY_W) && !player.isJumping) {
                 player.velocityY = -400.0f * GetFrameTime();
                 player.isJumping = true;
+                player.canJump = false;
                 player.state = JUMPING;
                 player.frame = 0;
                 player.maxFrames = 8;
                 player.frameTime = 0.2f;
             }
-
+            
+            printf("player.y: %d\n", player.y);
             // Handle horizontal movement
             if (IsKeyDown(KEY_A)) {
                 player.x -= MOVE_SPEED;
@@ -833,6 +832,9 @@ int main(void){
                     player.frame = 0; // Reseta o frame ao entrar no estado RUNNING
                     player.maxFrames = 8;
                     player.frameTime = 0.1f;
+                }
+                if(player.y < 176){
+                    player.isJumping = true;
                 }
             }
 
@@ -848,6 +850,9 @@ int main(void){
                     player.frame = 0;
                     player.maxFrames = 8;
                     player.frameTime = 0.1f;
+                }
+                if(player.y < 176){
+                    player.isJumping = true;
                 }
             }
 
