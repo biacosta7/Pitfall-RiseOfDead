@@ -575,10 +575,9 @@ int main(void){
     double startTime = 0.0;
     bool timeStarted = false;
     Texture2D backgroundTitle = LoadTexture("assets/map/layers/initialbackground.png");
-    Texture2D floor_piece_texture = LoadTexture( "assets/map/floor.png");
     Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
-    Texture2D pit1_texture = LoadTexture("assets/map/platform-floor.png");
-    Texture2D pit2_texture = LoadTexture("assets/obstaculos/platform2.png");
+    Texture2D floor_texture = LoadTexture("assets/map/floor.png");
+    Texture2D pit2_texture = LoadTexture("assets/obstaculos/a.png");
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
     Texture2D background2_texture = LoadTexture( "assets/map/layers/bg2.png" );
     SetTargetFPS(60);
@@ -817,8 +816,6 @@ int main(void){
                 player.lives = 0;
                 isGameOver = true;
             }
-            printf("player.y: %d\n", player.y);
-            printf("player.velocityY: %f\n", player.velocityY);
 
             UpdatePlayerAnimation(&player, deltaTime);
 
@@ -842,23 +839,6 @@ int main(void){
             };
             DrawRectangleRec(collision_box, ColorAlpha(GREEN, 0.5f));
 
-            Rectangle collision_box_enemy = {
-                .x = enemy.x + (player.width * 2),
-                .y = enemy.y + (player.height * 6) - 10,
-                .width = enemy.width * 3,
-                .height = 10
-            };
-            DrawRectangleRec(collision_box_enemy, ColorAlpha(YELLOW, 0.5f));
-
-
-            Rectangle pit_collision = {
-                .x = pit_collision.x,
-                .y = pit_collision.y,
-                .width = pit_collision.width / 3,
-                .height = pit_collision.height
-            };
-            DrawRectangleRec(pit_collision, ColorAlpha(PINK, 0.5f));
-
             // Draw player bounds
             Rectangle player_bounds = {
                 .x = player.x,
@@ -875,7 +855,7 @@ int main(void){
                 
                 // Alterna entre as texturas conforme o tipo da pit
                 if (pits[i].type == FLOOR) {
-                    pit_texture = pit1_texture;  // Usa `pit1_texture` para FLOOR
+                    pit_texture = floor_texture;  // Usa `floor_texture` para FLOOR
                 } else {
                     pit_texture = pit2_texture;  // Usa `pit2_texture` para PIT
                 }
@@ -933,9 +913,8 @@ int main(void){
     UnloadTexture(enemy.runTexture);
     UnloadTexture(enemy.attackTexture);
     UnloadTexture(backgroundTitle);
-    UnloadTexture(floor_piece_texture);
     UnloadFont(fontePersonalizada);
-    UnloadTexture(pit1_texture);
+    UnloadTexture(floor_texture);
     UnloadTexture(pit2_texture);
     UnloadTexture(background_texture);
     UnloadTexture(background2_texture);
