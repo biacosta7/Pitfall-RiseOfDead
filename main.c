@@ -942,3 +942,23 @@ int main(void){
     CloseWindow();
     return 0;
 }
+/* if(gamewin == 1) {
+    char nome_player[20];
+    char c;
+    int i = 0, j = 10;
+    loadwinnerlist();
+    printf("Escreva seu nome e entre para a Lista de Vencedores: ");
+
+    while ((c = getchar()) != '\n' && i < 19) {
+      if(isalnum(c) != 0) {
+        nome_player[i] = c;
+        i++;
+      }
+    }
+
+    nome_player[i] = '\0';
+    fflush(stdout);
+    printf("%s, tempo de jogo: %d ticks\n\n", nome_player, play_time);
+    add_jogador(&head, nome_player, play_time);
+    
+    play_time = elapsedTime?*/
