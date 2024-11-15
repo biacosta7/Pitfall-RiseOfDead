@@ -833,7 +833,7 @@ int main(void){
                     player.maxFrames = 8;
                     player.frameTime = 0.1f;
                 }
-                if(player.y < 176){
+                if(player.y < 176 || player.y > 176){
                     player.isJumping = true;
                 }
             }
@@ -851,7 +851,7 @@ int main(void){
                     player.maxFrames = 8;
                     player.frameTime = 0.1f;
                 }
-                if(player.y < 176){
+                if(player.y < 176 || player.y > 176){
                     player.isJumping = true;
                 }
             }
