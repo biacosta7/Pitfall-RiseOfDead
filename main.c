@@ -34,8 +34,6 @@ typedef struct{
     int y;
     int width;
     int height;
-    //int speed;
-    //int jump_strength;
     float velocityY; // velocidade vertical (para controlar o pulo)
     bool isJumping;
     bool canJump;
@@ -65,6 +63,7 @@ typedef struct{
     int width;
     int height;
     float velocityY;
+    bool isAttacking;
     PersonagemState state;
     Texture2D idleTexture;
     Texture2D runTexture;
@@ -74,6 +73,7 @@ typedef struct{
     float currentFrameTime; // Acumulador de tempo
     int maxFrames;       // Número de frames na spritesheet
     bool flipRight; // controla a direção
+    int enemyLives;
 } Enemy;
 
 typedef struct {
@@ -89,7 +89,7 @@ typedef struct {
 } BackgroundLayer;
 
 typedef enum {
-    PLATFORM,
+    PIT,
     FLOOR,
 } PlatformType;
 
@@ -102,8 +102,74 @@ typedef struct {
     Texture2D texture;
 } Platform;
 
-void aplica_gravidade_player(Player *player, Platform platforms[], int total_platform_count, float deltaTime);
-void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime);
+// struct Winners{
+//     char nome[20];
+//     int tempo;
+//     struct Winners *next;
+// };
+// struct Winners *head = NULL;
+// void add_winner(struct Winners **head, char *nome, int tempo){
+//     struct Winners *n = *head;
+//     struct Winners *novo = (struct Winners *)malloc(sizeof(struct Winners));
+//     struct Winners *anterior = NULL;
+
+//     strcpy(novo->nome, nome);
+//     novo->tempo = tempo;
+//     novo->next = NULL;
+
+//     if(*head == NULL){
+//         *head = novo;
+//         return;
+//     }
+
+//     if((*head)->tempo > novo->tempo){
+//         novo->next = *head;
+//         *head = novo;
+//         return;
+//     }
+//     while(n != NULL && n->tempo <= novo -> tempo){
+//         anterior = n;
+//         n = n-> next;
+//     }
+//     if(anterior != NULL){
+//         anterior -> next = novo;
+//     }
+//     novo -> next = n;
+//     return;
+// }
+// void winnerList(){
+//     FILE *list;
+//     char nome[20];
+//     int tempo;
+//     list = fopen("vencedores.txt", "r");
+//     while(fscanf(list, "%s %d", nome, &tempo) == 2){
+//         add_winner(&head, nome, tempo);
+//     }
+//     fclose(list);
+// }
+// void printwinnerList(struct Winners *head){
+//     struct Winners *n = *head;
+//     int i = 1;
+//     while(n != NULL && i <= 10){
+//         printf("%d. %s: %d segundos", i, n->nome, n->tempo);
+//         n = n->next;
+//         i++;
+//     }
+//     printf("\n");
+// }
+// void writeWinners(){
+//     FILE *list;
+//     list = fopen("winners.txt", "w");
+//     struct Winners *n = head;
+//     while(n != NULL){
+//         fprintf(list,"%s %d\n", n->nome, n->tempo);
+//         n=n->next;
+//     }
+//     fclose(list);
+// }
+
+void aplica_gravidade_player(Player *player, Platform pits[], int total_ground_count, float deltaTime);
+void aplica_gravidade_enemy(Enemy *enemy, Platform pits[], int total_ground_count, float deltaTime);
 
 void DrawBackground(Texture2D background, int screenWidth, int screenHeight, Camera2D camera) {
     float scale;
@@ -148,6 +214,18 @@ void DrawLives(Player player, Camera2D camera) {
     } else if (player.lives == 1) {
         DrawTexture(player.heartTexture1, posX, posY, WHITE);
     }
+}
+void DrawTimer(Camera2D camera, int timerValue) {
+    // Define a posição do timer ajustada pela câmera
+    int posX = 20 - camera.offset.x;
+    int posY = 20 - camera.offset.y;
+
+    // Converte o valor do timer para string
+    char timerText[10];
+    snprintf(timerText, sizeof(timerText), "%d", timerValue);
+
+    // Desenha o texto na posição ajustada
+    DrawText(timerText, posX, posY, 20, RED);
 }
 
 void UpdatePlayerAnimation(Player *player, float deltaTime) {
@@ -288,7 +366,7 @@ void InitEnemySpawners(EnemySpawner enemies[], int count, Enemy baseEnemy) {
     }
 }
 
-int player_na_plataforma(Player player, Platform platforms[], int total_platform_count) {
+int player_no_pit(Player player, Platform pits[], int total_ground_count) {
     Rectangle player_rec = {
         .x = player.x + (player.width * 2),
         .y = player.y + (player.height * 6) - 10,
@@ -296,27 +374,24 @@ int player_na_plataforma(Player player, Platform platforms[], int total_platform
         .height = 10  // Small height for ground detection
     };
 
-    for(int i = 0; i < total_platform_count; i++) {
-        Rectangle platform_rec = {
-            .x = platforms[i].x,
-            .y = platforms[i].y,
-            .width = platforms[i].width,
-            .height = platforms[i].height
+    for(int i = 0; i < total_ground_count; i++) {
+        Rectangle pit_rec = {
+            .x = pits[i].x,
+            .y = pits[i].y,
+            .width = pits[i].width,
+            .height = pits[i].height
         };
 
-        if(CheckCollisionRecs(player_rec, platform_rec)) {
-            if (platforms[i].type == FLOOR){
+        if(CheckCollisionRecs(player_rec, pit_rec)) {
+            if (pits[i].type == FLOOR){
                 return i;
-            } else{
-                return -1;
-            } 
+            }
         }
-        
     }
     return -1;
 }
 
-int enemy_na_plataforma(Enemy enemy, Platform platforms[], int total_platform_count) {
+int enemy_no_pit(Enemy enemy, Platform pits[], int total_ground_count) {
     Rectangle enemy_rec = {
         .x = enemy.x + (enemy.width * 2),
         .y = enemy.y + (enemy.height * 6) - 10,
@@ -324,22 +399,19 @@ int enemy_na_plataforma(Enemy enemy, Platform platforms[], int total_platform_co
         .height = 10 
     };
 
-    for(int i = 0; i < total_platform_count; i++) {
-        Rectangle platform_rec = {
-            .x = platforms[i].x,
-            .y = platforms[i].y,
-            .width = platforms[i].width,
-            .height = platforms[i].height
+    for(int i = 0; i < total_ground_count; i++) {
+        Rectangle pit_rec = {
+            .x = pits[i].x,
+            .y = pits[i].y,
+            .width = pits[i].width,
+            .height = pits[i].height
         };
 
-        if(CheckCollisionRecs(enemy_rec, platform_rec)) {
-            if (platforms[i].type == FLOOR){
+        if(CheckCollisionRecs(enemy_rec, pit_rec)) {
+            if (pits[i].type == FLOOR){
                 return i;
-            } else{
-                return -1;
-            } 
-        }
-        
+            }
+        } 
     }
     return -1;
 }
@@ -347,37 +419,49 @@ int enemy_na_plataforma(Enemy enemy, Platform platforms[], int total_platform_co
 bool enemy_colide_player(Enemy enemy, Player player){
     Rectangle enemy_rec = {
         .x = enemy.x + (enemy.width * 2),
-        .y = enemy.y + (enemy.height * 6) - 10,
+        .y = enemy.y,
         .width = enemy.width * 3,
         .height = 10 
     };
 
     Rectangle player_rec = {
         .x = player.x + (player.width * 2),
-        .y = player.y + (player.height * 6) - 10,
+        .y = player.y,
         .width = player.width * 3,
         .height = 10 
     };
 
-    if(CheckCollisionRecs(enemy_rec, player_rec)) {
-        return true;
-    }
-    return false;
+    return CheckCollisionRecs(enemy_rec, player_rec);
+    
 }
 
 void UpdateEnemyPosition(Enemy *enemy, Player player) {
-    if (player.x > enemy->x && !enemy_colide_player(*enemy, player)){
+    bool is_colliding = enemy_colide_player(*enemy, player);
+
+    if (is_colliding){
+        enemy->isAttacking = true;
+        if (enemy->state != ATTACK) {
+            enemy->state = ATTACK;
+            enemy->frame = 0;
+            enemy->maxFrames = 4;
+            enemy->frameTime = 0.2f;
+        }
+    }
+    
+    else if (player.x > enemy->x && !is_colliding){
         enemy->x += 2.0f;
         enemy->flipRight = true;
+        enemy->isAttacking = false;
         if (enemy->state != RUNNING) {
             enemy->state = RUNNING;
             enemy->frame = 0;
             enemy->maxFrames = 7;
             enemy->frameTime = 0.3f;
         }
-    } else if (player.x < enemy->x && !enemy_colide_player(*enemy, player)){
+    } else if (player.x < enemy->x && !is_colliding){
         enemy->x -= 2.0f;
         enemy->flipRight = false;
+        enemy->isAttacking = false;
         if (enemy->state != RUNNING) {
             enemy->state = RUNNING;
             enemy->frame = 0;
@@ -385,14 +469,8 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
             enemy->frameTime = 0.3f;
         }
     } 
-    else if(enemy_colide_player(*enemy, player)){
-        if (enemy->state != ATTACK) {
-            enemy->state = ATTACK;
-            enemy->frame = 0;
-            enemy->maxFrames = 4;
-            enemy->frameTime = 0.2f;
-        }
-    } else {
+    else {
+        enemy->isAttacking = false;
         if (enemy->state != IDLE) {
             enemy->state = IDLE;
             enemy->frame = 0;
@@ -403,7 +481,7 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
 }
 
 // Update and manage enemy spawning
-void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *platforms, int total_platform_count) {
+void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *pits, int total_ground_count) {
     float spawnTriggerDistance = 400.0f;  // Distance before spawn point when enemy should appear
     
     for(int i = 0; i < count; i++) {
@@ -416,18 +494,21 @@ void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *p
             }
         }
         else {
-            aplica_gravidade_enemy(&enemies[i].enemy, platforms, total_platform_count, GetFrameTime());
+            aplica_gravidade_enemy(&enemies[i].enemy, pits, total_ground_count, GetFrameTime());
             UpdateEnemyPosition(&enemies[i].enemy, player); // Update active enemy
             UpdateEnemyAnimation(&enemies[i].enemy, GetFrameTime()); // Update enemy animation
         }
     }
 }
 
-void aplica_gravidade_player(Player *player, Platform platforms[], int total_platform_count, float deltaTime) {
-    const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
+void aplica_gravidade_player(Player *player, Platform pits[], int total_ground_count, float deltaTime) {
+    const float MAX_FALL_SPEED = 10.0f;
     
-    // Apply gravity with deltaTime only if jumping or in air
-    if (player->isJumping || player->velocityY != 0) {
+    int current_pit = player_no_pit(*player, pits, total_ground_count);
+    bool on_floor = (current_pit != -1); // Player is over a FLOOR type pit
+    
+    // Apply gravity if not on floor, regardless of jump state
+    if (!on_floor || player->isJumping) {
         player->velocityY += GRAVITY * deltaTime;
     }
 
@@ -437,34 +518,27 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_pla
     }
     
     // Update position
-    player->y += player->velocityY * deltaTime * 60.0f; // Normalize for 60 FPS
+    player->y += player->velocityY * deltaTime * 60.0f;
     
-    // Check platform collision
-    int current_platform = player_na_plataforma(*player, platforms, total_platform_count);
+    // Check floor collision again after movement
+    current_pit = player_no_pit(*player, pits, total_ground_count);
 
-    if (current_platform != -1) {
-        // If colliding with platform
+    if (current_pit != -1) {
+        // If colliding with floor
         if (player->velocityY > 0) {  // Only if moving downward
-            // Snap to platform top
             player->isJumping = false;
-            player->canJump = true;    // Allow jumping when on platform
-            player->y = platforms[current_platform].y - (player->height * 6);
+            player->canJump = true;    
+            player->y = pits[current_pit].y - (player->height * 6);
             player->velocityY = 0.0;
         }
     } else {
-        // If in air
-        player->canJump = false;       // Can't jump while in air
         if (player->velocityY != 0) {
-            player->isJumping = true;
+            player->canJump = false;
         }
     }
-
-    // Debug output to help track jump state
-    printf("Jump State: isJumping=%d,velocity.y=%f\n", 
-           player->isJumping, player->velocityY);
 }
 
-void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime) {
+void aplica_gravidade_enemy(Enemy *enemy, Platform pits[], int total_ground_count, float deltaTime) {
     const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
     
     // Apply gravity with deltaTime
@@ -478,14 +552,14 @@ void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platfo
     // Update position
     enemy->y += enemy->velocityY * deltaTime * 60.0f;
     
-    // Check platform collision
-    int current_platform_enemy = enemy_na_plataforma(*enemy, platforms, total_platform_count);
+    // Check pit collision
+    int current_pit_enemy = enemy_no_pit(*enemy, pits, total_ground_count);
 
-    if (current_platform_enemy != -1) {
-        // If colliding with platform
+    if (current_pit_enemy != -1) {
+        // If colliding with pit
         if (enemy->velocityY > 0) {  // Only if moving downward
-            // Snap to platform top
-            enemy->y = platforms[current_platform_enemy].y - (enemy->height * 6);
+            // Snap to pit top
+            enemy->y = pits[current_pit_enemy].y - (enemy->height * 6);
             enemy->velocityY = 0;
         }
     }
@@ -493,18 +567,19 @@ void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platfo
 
 
 int main(void){
+    bool isGameOver = false;
     // cria window
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
     InitWindow(screenWidth, screenHeight, "Pitfall - Rise Of Dead");
+    double startTime = 0.0;
+    bool timeStarted = false;
     Texture2D backgroundTitle = LoadTexture("assets/map/layers/initialbackground.png");
-    Texture2D floor_piece_texture = LoadTexture( "assets/map/floor.png");
     Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
-    Texture2D platform1_texture = LoadTexture("assets/map/platform-floor.png");
-    Texture2D platform2_texture = LoadTexture("assets/obstaculos/platform2.png");
+    Texture2D floor_texture = LoadTexture("assets/map/floor.png");
+    Texture2D pit2_texture = LoadTexture("assets/obstaculos/a.png");
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
     Texture2D background2_texture = LoadTexture( "assets/map/layers/bg2.png" );
-
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
 
@@ -534,31 +609,31 @@ int main(void){
     int background_x = 0;
     int background2_x = 0;
 
-    // definicões da plataforma
+    // definicões da pit
     int whitespace = 30; // espaco em branco da imagem, essa "margem/padding" do topo
 
-    int platform_height = 190; // altura do chão
-    int platform_width = 200; // tamanho (largura) de cada plataforma
+    int pit_height = 190; // altura do chão
+    int pit_width = 200; // tamanho (largura) de cada pit
 
-    int total_platform_count = ceil((float)worldWidth / (float)platform_width); // calcula quantos pedacos de chão são necessários pra cobrir toda a largura do mundo
+    int total_ground_count = ceil((float)worldWidth / (float)pit_width); // calcula quantos pedacos de chão são necessários pra cobrir toda a largura do mundo
     
     // criando chão (floor)
-    Platform platforms[total_platform_count];
+    Platform pits[total_ground_count];
     
-    // Alternância das plataformas sem espaços entre elas
-    int platform_x = 0;  // acumula 
+    // Alternância das pits sem espaços entre elas
+    int pit_x = 0;  // acumula 
 
-    for(int i=0; i < total_platform_count; i++){
-        platforms[i].width = platform_width;
-        platforms[i].height = platform_height;
-        platforms[i].y = screenHeight - platform_height + whitespace;
-        platforms[i].x = platform_x;
+    for(int i=0; i < total_ground_count; i++){
+        pits[i].width = pit_width;
+        pits[i].height = pit_height;
+        pits[i].y = screenHeight - pit_height + whitespace;
+        pits[i].x = pit_x;
         if(i%7 == 6){ 
-            platforms[i].type = PLATFORM; // Plataforma
+            pits[i].type = PIT; // Plataforma
         } else {
-            platforms[i].type = FLOOR; // Floor
+            pits[i].type = FLOOR; // Floor
         }
-        platform_x += platform_width;
+        pit_x += pit_width;
     }
 
     // cria player
@@ -593,6 +668,7 @@ int main(void){
         .width = 64,
         .height = 64,
         .state = IDLE,
+        .isAttacking = false,
         .idleTexture = LoadTexture("assets/zombie/Idle.png"),
         .runTexture = LoadTexture("assets/zombie/run.png"),
         .attackTexture = LoadTexture("assets/zombie/attack.png"),
@@ -609,7 +685,6 @@ int main(void){
     
     // game loop
     while (!WindowShouldClose()){
-
         bool colidiu = false;
         bool movingHorizontal = false;
         bool movingLeft = false;
@@ -620,6 +695,12 @@ int main(void){
         ClearBackground(RAYWHITE);
         if(gameState == START_SCREEN){
             BeginDrawing();
+            if(IsKeyPressed(KEY_ENTER)){
+                gameState = GAMEPLAY;
+                startTime = GetTime(); //momento do começo do jogo
+                timeStarted = true;
+                isGameOver = false;
+            }
             int posXtitulo = 420;
             int postYtitulo = 40;
             int posXhistoria = 155;
@@ -635,15 +716,19 @@ int main(void){
             DrawTextEx(fontePersonalizada, tituloDoJogo, posTitulo, 40, 1, BLACK); //posicao X, posicao Y, tamanho fonte, cor
             DrawTextEx(fontePersonalizada, historiaDoJogo, posHistoria, 30, 1, WHITE);
             DrawText("Pressione ENTER para iniciar a corrida!", 325, 600, 30, RED);
-            if(IsKeyPressed(KEY_ENTER)){
-                gameState = GAMEPLAY;
-            }
         }
         else if(gameState == GAMEPLAY){
-
+            double elapsedTime;
+            if (!timeStarted) {
+                startTime = GetTime(); // Garante que o tempo de início é capturado apenas uma vez
+                timeStarted = true;
+            }
+            if (!isGameOver) {
+                double currentTime = GetTime();
+                elapsedTime = currentTime - startTime; // Atualiza o tempo decorrido
+            }
             // camera 2D
             BeginMode2D( camera );
-
             if( player.x > screenWidth * 0.1 ) {
                 camera.offset.x = -(player.x - screenWidth * 0.1);
 
@@ -725,13 +810,18 @@ int main(void){
                 }
             }
 
-            aplica_gravidade_player(&player, platforms, total_platform_count, deltaTime);
+            aplica_gravidade_player(&player, pits, total_ground_count, deltaTime);
             
+            if(player.y > 180){
+                player.lives = 0;
+                isGameOver = true;
+            }
+
             UpdatePlayerAnimation(&player, deltaTime);
 
             DrawTexture(background_texture, background_x, 0, WHITE );
             DrawTexture(background2_texture, background2_x, 0, WHITE );
-            UpdateEnemies(enemies, MAX_ENEMIES, player, platforms, total_platform_count);
+            UpdateEnemies(enemies, MAX_ENEMIES, player, pits, total_ground_count);
             DrawPlayer(player);
 
             for(int i = 0; i < MAX_ENEMIES; i++) {
@@ -749,23 +839,6 @@ int main(void){
             };
             DrawRectangleRec(collision_box, ColorAlpha(GREEN, 0.5f));
 
-            Rectangle collision_box_enemy = {
-                .x = enemy.x + (player.width * 2),
-                .y = enemy.y + (player.height * 6) - 10,
-                .width = enemy.width * 3,
-                .height = 10
-            };
-            DrawRectangleRec(collision_box_enemy, ColorAlpha(YELLOW, 0.5f));
-
-
-            Rectangle platform_collision = {
-                .x = platform_collision.x,
-                .y = platform_collision.y,
-                .width = platform_collision.width / 3,
-                .height = platform_collision.height
-            };
-            DrawRectangleRec(platform_collision, ColorAlpha(PINK, 0.5f));
-
             // Draw player bounds
             Rectangle player_bounds = {
                 .x = player.x,
@@ -776,19 +849,19 @@ int main(void){
             DrawRectangleLines(player_bounds.x, player_bounds.y, 
                             player_bounds.width, player_bounds.height, RED);
 
-            //desenhar floor/platform
-            for (int i = 0; i < total_platform_count; i++) {
-                Texture2D platform_texture;
+            //desenhar floor/pit
+            for (int i = 0; i < total_ground_count; i++) {
+                Texture2D pit_texture;
                 
-                // Alterna entre as texturas conforme o tipo da plataforma
-                if (platforms[i].type == FLOOR) {
-                    platform_texture = platform1_texture;  // Usa `platform1_texture` para FLOOR
+                // Alterna entre as texturas conforme o tipo da pit
+                if (pits[i].type == FLOOR) {
+                    pit_texture = floor_texture;  // Usa `floor_texture` para FLOOR
                 } else {
-                    platform_texture = platform2_texture;  // Usa `platform2_texture` para PLATFORM
+                    pit_texture = pit2_texture;  // Usa `pit2_texture` para PIT
                 }
 
-                // Desenha a textura atual na posição correspondente da plataforma
-                DrawTexture(platform_texture, platforms[i].x, platforms[i].y - whitespace, WHITE);
+                // Desenha a textura atual na posição correspondente da pit
+                DrawTexture(pit_texture, pits[i].x, pits[i].y - whitespace, WHITE);
             }
 
 
@@ -799,19 +872,35 @@ int main(void){
                 }
             }
 
-            if (enemy_colide_player(enemy, player) && !player.invencivel) {
-                if (player.lives > 0) {
-                    player.lives--;
-                    player.invencivel = true;  // Ativa invencibilidade temporária
-                    player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
-                }
-                else if(player.lives == 0){
-                    DrawText("Game Over!", 600, 400, 40, RED);
+            for (int i = 0; i < MAX_ENEMIES; i++) {
+                if (enemies[i].isActive && enemies[i].enemy.isAttacking && !player.invencivel) {
+                    if (!player.invencivel) {
+                        if (player.lives > 0) {
+                            player.lives--;
+                            player.invencivel = true;  // Ativa invencibilidade temporária
+                            player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
+                        }
+                        else if(player.lives == 0){
+                            isGameOver = true;
+                        }
+                    }
                 }
             }
             DrawLives(player, camera);
+            DrawTimer(camera, elapsedTime);
+            if (isGameOver){
+                EndMode2D();
+                //ClearBackground(BLACK);
+                const char* text = "Game Over!";
+                int textWidth = MeasureText(text, 40);
+
+                DrawText(text, 
+                        (GetScreenWidth() - textWidth) / 2,  // Center X
+                        GetScreenHeight() / 2 - 20,          // Center Y
+                        40, 
+                        RED);
+            }
         }
-        EndMode2D();
         EndDrawing();
         
     }
@@ -824,10 +913,9 @@ int main(void){
     UnloadTexture(enemy.runTexture);
     UnloadTexture(enemy.attackTexture);
     UnloadTexture(backgroundTitle);
-    UnloadTexture(floor_piece_texture);
     UnloadFont(fontePersonalizada);
-    UnloadTexture(platform1_texture);
-    UnloadTexture(platform2_texture);
+    UnloadTexture(floor_texture);
+    UnloadTexture(pit2_texture);
     UnloadTexture(background_texture);
     UnloadTexture(background2_texture);
 
@@ -835,3 +923,23 @@ int main(void){
     CloseWindow();
     return 0;
 }
+/* if(gamewin == 1) {
+    char nome_player[20];
+    char c;
+    int i = 0, j = 10;
+    loadwinnerlist();
+    printf("Escreva seu nome e entre para a Lista de Vencedores: ");
+
+    while ((c = getchar()) != '\n' && i < 19) {
+      if(isalnum(c) != 0) {
+        nome_player[i] = c;
+        i++;
+      }
+    }
+
+    nome_player[i] = '\0';
+    fflush(stdout);
+    printf("%s, tempo de jogo: %d ticks\n\n", nome_player, play_time);
+    add_jogador(&head, nome_player, play_time);
+    
+    play_time = elapsedTime?*/
