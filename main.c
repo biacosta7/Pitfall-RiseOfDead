@@ -357,18 +357,12 @@ bool enemy_colide_player(Enemy enemy, Player player){
         .width = player.width * 3,
         .height = 10 
     };
-    
-    printf("Enemy: x=%f, y=%f, Player: x=%f, y=%f\n", 
-           enemy_rec.x, enemy_rec.y, player_rec.x, player_rec.y);
 
     return CheckCollisionRecs(enemy_rec, player_rec);
-    
 }
 
 void UpdateEnemyPosition(Enemy *enemy, Player player) {
     bool is_colliding = enemy_colide_player(*enemy, player);
-    printf("Collision: %d, IsAttacking: %d\n", is_colliding, enemy->isAttacking);
-
 
     if (is_colliding){
         enemy->isAttacking = true;
@@ -436,7 +430,6 @@ void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *p
 void aplica_gravidade_player(Player *player, Platform platforms[], int total_platform_count, float deltaTime) {
     const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
     
-    // Apply gravity with deltaTime only if jumping or in air
     player->velocityY += GRAVITY * deltaTime;
 
     // Clamp fall speed
@@ -619,6 +612,7 @@ int main(void){
         bool colidiu = false;
         bool movingHorizontal = false;
         bool movingLeft = false;
+        bool gameover = false;
         float deltaTime = GetFrameTime();
 
         // draw the game
@@ -740,6 +734,12 @@ int main(void){
 
             aplica_gravidade_player(&player, platforms, total_platform_count, deltaTime);
             
+            if(player.y > 180){
+                player.lives = 0;
+                gameover = true;
+            }
+            printf("player.y: %d\n", player.y);
+
             UpdatePlayerAnimation(&player, deltaTime);
 
             DrawTexture(background_texture, background_x, 0, WHITE );
@@ -819,21 +819,30 @@ int main(void){
                             player.lives--;
                             player.invencivel = true;  // Ativa invencibilidade temporária
                             player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
-                            printf("Player lives: %d\n", player.lives);
                         }
                         else if(player.lives == 0){
-                            DrawText("Game Over!", 600, 400, 40, RED);
+                            gameover = true;
                             //DrawText(TextFormat("Tempo final: %.2f segundos", GetTime() - startTime), 600, 400, 40, RED);
                         }
                     }
                 }
             }
-            
+            if (gameover){
+                EndMode2D();
+                ClearBackground(BLACK);
+                const char* text = "Game Over!";
+                int textWidth = MeasureText(text, 40);
+
+                DrawText(text, 
+                        (GetScreenWidth() - textWidth) / 2,  // Center X
+                        GetScreenHeight() / 2 - 20,          // Center Y
+                        40, 
+                        RED);
+            }
             DrawLives(player, camera);
             //DrawText(TextFormat("Tempo: %.2f segundos", elapsedTime), 100, 400, 40, RED);
             
         }
-        EndMode2D();
         EndDrawing();
         
     }
