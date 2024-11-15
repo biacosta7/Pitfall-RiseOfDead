@@ -73,6 +73,7 @@ typedef struct{
     float currentFrameTime; // Acumulador de tempo
     int maxFrames;       // Número de frames na spritesheet
     bool flipRight; // controla a direção
+    int enemyLives;
 } Enemy;
 
 typedef struct {
@@ -100,6 +101,72 @@ typedef struct {
     PlatformType type;
     Texture2D texture;
 } Platform;
+
+// struct Winners{
+//     char nome[20];
+//     int tempo;
+//     struct Winners *next;
+// };
+// struct Winners *head = NULL;
+// void add_winner(struct Winners **head, char *nome, int tempo){
+//     struct Winners *n = *head;
+//     struct Winners *novo = (struct Winners *)malloc(sizeof(struct Winners));
+//     struct Winners *anterior = NULL;
+
+//     strcpy(novo->nome, nome);
+//     novo->tempo = tempo;
+//     novo->next = NULL;
+
+//     if(*head == NULL){
+//         *head = novo;
+//         return;
+//     }
+
+//     if((*head)->tempo > novo->tempo){
+//         novo->next = *head;
+//         *head = novo;
+//         return;
+//     }
+//     while(n != NULL && n->tempo <= novo -> tempo){
+//         anterior = n;
+//         n = n-> next;
+//     }
+//     if(anterior != NULL){
+//         anterior -> next = novo;
+//     }
+//     novo -> next = n;
+//     return;
+// }
+// void winnerList(){
+//     FILE *list;
+//     char nome[20];
+//     int tempo;
+//     list = fopen("vencedores.txt", "r");
+//     while(fscanf(list, "%s %d", nome, &tempo) == 2){
+//         add_winner(&head, nome, tempo);
+//     }
+//     fclose(list);
+// }
+// void printwinnerList(struct Winners *head){
+//     struct Winners *n = *head;
+//     int i = 1;
+//     while(n != NULL && i <= 10){
+//         printf("%d. %s: %d segundos", i, n->nome, n->tempo);
+//         n = n->next;
+//         i++;
+//     }
+//     printf("\n");
+// }
+// void writeWinners(){
+//     FILE *list;
+//     list = fopen("winners.txt", "w");
+//     struct Winners *n = head;
+//     while(n != NULL){
+//         fprintf(list,"%s %d\n", n->nome, n->tempo);
+//         n=n->next;
+//     }
+//     fclose(list);
+// }
 
 void aplica_gravidade_player(Player *player, Platform platforms[], int total_platform_count, float deltaTime);
 void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime);
@@ -147,6 +214,18 @@ void DrawLives(Player player, Camera2D camera) {
     } else if (player.lives == 1) {
         DrawTexture(player.heartTexture1, posX, posY, WHITE);
     }
+}
+void DrawTimer(Camera2D camera, int timerValue) {
+    // Define a posição do timer ajustada pela câmera
+    int posX = 20 - camera.offset.x;
+    int posY = 20 - camera.offset.y;
+
+    // Converte o valor do timer para string
+    char timerText[10];
+    snprintf(timerText, sizeof(timerText), "%d", timerValue);
+
+    // Desenha o texto na posição ajustada
+    DrawText(timerText, posX, posY, 20, RED);
 }
 
 void UpdatePlayerAnimation(Player *player, float deltaTime) {
@@ -357,8 +436,12 @@ bool enemy_colide_player(Enemy enemy, Player player){
         .width = player.width * 3,
         .height = 10 
     };
+    
+    printf("Enemy: x=%f, y=%f, Player: x=%f, y=%f\n", 
+           enemy_rec.x, enemy_rec.y, player_rec.x, player_rec.y);
 
     return CheckCollisionRecs(enemy_rec, player_rec);
+    
 }
 
 void UpdateEnemyPosition(Enemy *enemy, Player player) {
@@ -430,7 +513,10 @@ void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *p
 void aplica_gravidade_player(Player *player, Platform platforms[], int total_platform_count, float deltaTime) {
     const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
     
-    player->velocityY += GRAVITY * deltaTime;
+    // Apply gravity with deltaTime only if jumping or in air
+    if (player->isJumping || player->velocityY != 0) {
+        player->velocityY += GRAVITY * deltaTime;
+    }
 
     // Clamp fall speed
     if (player->velocityY > MAX_FALL_SPEED) {
@@ -490,6 +576,7 @@ void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platfo
 
 
 int main(void){
+    bool isGameOver = false;
     // cria window
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
@@ -608,11 +695,9 @@ int main(void){
     
     // game loop
     while (!WindowShouldClose()){
-
         bool colidiu = false;
         bool movingHorizontal = false;
         bool movingLeft = false;
-        bool gameover = false;
         float deltaTime = GetFrameTime();
 
         // draw the game
@@ -624,6 +709,7 @@ int main(void){
                 gameState = GAMEPLAY;
                 startTime = GetTime(); //momento do começo do jogo
                 timeStarted = true;
+                isGameOver = false;
             }
             int posXtitulo = 420;
             int postYtitulo = 40;
@@ -642,13 +728,15 @@ int main(void){
             DrawText("Pressione ENTER para iniciar a corrida!", 325, 600, 30, RED);
         }
         else if(gameState == GAMEPLAY){
+            double elapsedTime;
             if (!timeStarted) {
                 startTime = GetTime(); // Garante que o tempo de início é capturado apenas uma vez
                 timeStarted = true;
             }
-            double currentTime = GetTime();
-            double elapsedTime = currentTime - startTime;  // Tempo decorrido
-            printf("Segundos: %f", elapsedTime);
+            if (!isGameOver) {
+                double currentTime = GetTime();
+                elapsedTime = currentTime - startTime; // Atualiza o tempo decorrido
+            }
             // camera 2D
             BeginMode2D( camera );
             if( player.x > screenWidth * 0.1 ) {
@@ -819,17 +907,19 @@ int main(void){
                             player.lives--;
                             player.invencivel = true;  // Ativa invencibilidade temporária
                             player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
+                            printf("Player lives: %d\n", player.lives);
                         }
                         else if(player.lives == 0){
-                            gameover = true;
-                            //DrawText(TextFormat("Tempo final: %.2f segundos", GetTime() - startTime), 600, 400, 40, RED);
+                            isGameOver = true;
                         }
                     }
                 }
             }
-            if (gameover){
+            DrawLives(player, camera);
+            DrawTimer(camera, elapsedTime);
+            if (isGameOver){
                 EndMode2D();
-                ClearBackground(BLACK);
+                //ClearBackground(BLACK);
                 const char* text = "Game Over!";
                 int textWidth = MeasureText(text, 40);
 
@@ -839,9 +929,6 @@ int main(void){
                         40, 
                         RED);
             }
-            DrawLives(player, camera);
-            //DrawText(TextFormat("Tempo: %.2f segundos", elapsedTime), 100, 400, 40, RED);
-            
         }
         EndDrawing();
         
@@ -866,3 +953,23 @@ int main(void){
     CloseWindow();
     return 0;
 }
+/* if(gamewin == 1) {
+    char nome_player[20];
+    char c;
+    int i = 0, j = 10;
+    loadwinnerlist();
+    printf("Escreva seu nome e entre para a Lista de Vencedores: ");
+
+    while ((c = getchar()) != '\n' && i < 19) {
+      if(isalnum(c) != 0) {
+        nome_player[i] = c;
+        i++;
+      }
+    }
+
+    nome_player[i] = '\0';
+    fflush(stdout);
+    printf("%s, tempo de jogo: %d ticks\n\n", nome_player, play_time);
+    add_jogador(&head, nome_player, play_time);
+    
+    play_time = elapsedTime?*/
