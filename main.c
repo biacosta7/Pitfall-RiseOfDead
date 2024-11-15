@@ -385,11 +385,8 @@ int player_na_plataforma(Player player, Platform platforms[], int total_platform
         if(CheckCollisionRecs(player_rec, platform_rec)) {
             if (platforms[i].type == FLOOR){
                 return i;
-            } else{
-                return -1;
-            } 
+            }
         }
-        
     }
     return -1;
 }
@@ -413,11 +410,8 @@ int enemy_na_plataforma(Enemy enemy, Platform platforms[], int total_platform_co
         if(CheckCollisionRecs(enemy_rec, platform_rec)) {
             if (platforms[i].type == FLOOR){
                 return i;
-            } else{
-                return -1;
-            } 
-        }
-        
+            }
+        } 
     }
     return -1;
 }
@@ -436,9 +430,6 @@ bool enemy_colide_player(Enemy enemy, Player player){
         .width = player.width * 3,
         .height = 10 
     };
-    
-    printf("Enemy: x=%f, y=%f, Player: x=%f, y=%f\n", 
-           enemy_rec.x, enemy_rec.y, player_rec.x, player_rec.y);
 
     return CheckCollisionRecs(enemy_rec, player_rec);
     
@@ -511,10 +502,13 @@ void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *p
 }
 
 void aplica_gravidade_player(Player *player, Platform platforms[], int total_platform_count, float deltaTime) {
-    const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
+    const float MAX_FALL_SPEED = 10.0f;
     
-    // Apply gravity with deltaTime only if jumping or in air
-    if (player->isJumping || player->velocityY != 0) {
+    int current_platform = player_na_plataforma(*player, platforms, total_platform_count);
+    bool on_floor = (current_platform != -1); // Player is over a FLOOR type platform
+    
+    // Apply gravity if not on floor, regardless of jump state
+    if (!on_floor || player->isJumping) {
         player->velocityY += GRAVITY * deltaTime;
     }
 
@@ -524,25 +518,22 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_pla
     }
     
     // Update position
-    player->y += player->velocityY * deltaTime * 60.0f; // Normalize for 60 FPS
+    player->y += player->velocityY * deltaTime * 60.0f;
     
-    // Check platform collision
-    int current_platform = player_na_plataforma(*player, platforms, total_platform_count);
+    // Check floor collision again after movement
+    current_platform = player_na_plataforma(*player, platforms, total_platform_count);
 
     if (current_platform != -1) {
-        // If colliding with platform
+        // If colliding with floor
         if (player->velocityY > 0) {  // Only if moving downward
-            // Snap to platform top
             player->isJumping = false;
-            player->canJump = true;    // Allow jumping when on platform
+            player->canJump = true;    
             player->y = platforms[current_platform].y - (player->height * 6);
             player->velocityY = 0.0;
         }
     } else {
-        // If in air
-        player->canJump = false;       // Can't jump while in air
         if (player->velocityY != 0) {
-            player->isJumping = true;
+            player->canJump = false;
         }
     }
 }
@@ -827,6 +818,7 @@ int main(void){
                 isGameOver = true;
             }
             printf("player.y: %d\n", player.y);
+            printf("player.velocityY: %f\n", player.velocityY);
 
             UpdatePlayerAnimation(&player, deltaTime);
 
@@ -907,7 +899,6 @@ int main(void){
                             player.lives--;
                             player.invencivel = true;  // Ativa invencibilidade temporária
                             player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
-                            printf("Player lives: %d\n", player.lives);
                         }
                         else if(player.lives == 0){
                             isGameOver = true;
