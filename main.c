@@ -11,6 +11,7 @@
 #define MAX_LIVES 3
 #define GRAVITY 15.0f
 #define MAX_ENEMIES 5
+#define MAX_ZOMBIE_HANDS 5
 
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK } PersonagemState;
 typedef enum { START_SCREEN, GAMEPLAY } GameState;
@@ -101,6 +102,16 @@ typedef struct {
     PlatformType type;
     Texture2D texture;
 } Platform;
+
+typedef struct {
+    int x;
+    int y;
+    int width;
+    int height;
+    Texture2D texture;
+    bool isActive;
+} ZombieHand;
+ZombieHand zombie_hands[MAX_ZOMBIE_HANDS];
 
 // struct Winners{
 //     char nome[20];
@@ -565,6 +576,36 @@ void aplica_gravidade_enemy(Enemy *enemy, Platform pits[], int total_ground_coun
     }
 }
 
+void InitZombieHands(ZombieHand hands[], int count, int screenWidth, int screenHeight, Texture2D zombiehand_texture, int platform_height) {
+    float spawnDistance = 100.0f;  // Distance between spawn points
+    
+    for(int i = 0; i < count; i++) {
+        hands[i].x = (i + 1) * spawnDistance;
+        hands[i].y = screenHeight - (platform_height * 6) - (hands[i].height * 3);
+        hands[i].width = 64;
+        hands[i].height = 64;
+        hands[i].texture = zombiehand_texture;
+        hands[i].isActive = false;
+    }
+}
+
+void UpdateZombieHands(ZombieHand hands[], int count, Player player, Camera2D camera) {
+    float spawnTriggerDistance = 400.0f;  // Distance before spawn point when hand should appear
+    
+    for(int i = 0; i < count; i++) {
+        if (!hands[i].isActive) {
+            // Check if player is approaching this spawn point
+            if (player.x > (hands[i].x - spawnTriggerDistance)) {
+                hands[i].isActive = true;
+            }
+        }
+        else {
+            // Update the position of the active zombie hand based on camera offset
+            hands[i].x = hands[i].x - camera.offset.x;
+        }
+    }
+}
+
 
 int main(void){
     bool isGameOver = false;
@@ -574,12 +615,13 @@ int main(void){
     InitWindow(screenWidth, screenHeight, "Pitfall - Rise Of Dead");
     double startTime = 0.0;
     bool timeStarted = false;
-    Texture2D backgroundTitle = LoadTexture("assets/map/layers/initialbackground.png");
+    Texture2D backgroundTitle = LoadTexture("assets/map/layers/bg1.png");
     Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
     Texture2D floor_texture = LoadTexture("assets/map/floor.png");
     Texture2D pit2_texture = LoadTexture("assets/obstaculos/a.png");
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
     Texture2D background2_texture = LoadTexture( "assets/map/layers/bg2.png" );
+    Texture2D zombiehand_texture = LoadTexture( "assets/obstaculos/zombiehand.png" );
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
 
@@ -609,13 +651,13 @@ int main(void){
     int background_x = 0;
     int background2_x = 0;
 
-    // definicões da pit
+    // definicões da plataforma
     int whitespace = 30; // espaco em branco da imagem, essa "margem/padding" do topo
 
-    int pit_height = 190; // altura do chão
-    int pit_width = 200; // tamanho (largura) de cada pit
+    int platform_height = 190; // altura do chão
+    int platform_width = 200; // tamanho (largura) de cada plataforma
 
-    int total_ground_count = ceil((float)worldWidth / (float)pit_width); // calcula quantos pedacos de chão são necessários pra cobrir toda a largura do mundo
+    int total_ground_count = ceil((float)worldWidth / (float)platform_width); // calcula quantos pedacos de chão são necessários pra cobrir toda a largura do mundo
     
     // criando chão (floor)
     Platform pits[total_ground_count];
@@ -624,17 +666,19 @@ int main(void){
     int pit_x = 0;  // acumula 
 
     for(int i=0; i < total_ground_count; i++){
-        pits[i].width = pit_width;
-        pits[i].height = pit_height;
-        pits[i].y = screenHeight - pit_height + whitespace;
+        pits[i].width = platform_width;
+        pits[i].height = platform_height;
+        pits[i].y = screenHeight - platform_height + whitespace;
         pits[i].x = pit_x;
         if(i%7 == 6){ 
             pits[i].type = PIT; // Plataforma
         } else {
             pits[i].type = FLOOR; // Floor
         }
-        pit_x += pit_width;
+        pit_x += platform_width;
     }
+
+    InitZombieHands(zombie_hands, MAX_ZOMBIE_HANDS, screenWidth, screenHeight, zombiehand_texture, platform_height);
 
     // cria player
     Player player = {
@@ -822,6 +866,7 @@ int main(void){
             DrawTexture(background_texture, background_x, 0, WHITE );
             DrawTexture(background2_texture, background2_x, 0, WHITE );
             UpdateEnemies(enemies, MAX_ENEMIES, player, pits, total_ground_count);
+            UpdateZombieHands(zombie_hands, MAX_ZOMBIE_HANDS, player, camera);
             DrawPlayer(player);
 
             for(int i = 0; i < MAX_ENEMIES; i++) {
@@ -864,6 +909,12 @@ int main(void){
                 DrawTexture(pit_texture, pits[i].x, pits[i].y - whitespace, WHITE);
             }
 
+            // draw hand
+            for (int i = 0; i < MAX_ZOMBIE_HANDS; i++) {
+                if (zombie_hands[i].isActive) {
+                    DrawTexture(zombie_hands[i].texture, zombie_hands[i].x, zombie_hands[i].y, WHITE);
+                }
+            }
 
             if (player.invencivel) {
                 player.invencibilidadeTimer -= GetFrameTime();
