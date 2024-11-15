@@ -73,6 +73,7 @@ typedef struct{
     float currentFrameTime; // Acumulador de tempo
     int maxFrames;       // Número de frames na spritesheet
     bool flipRight; // controla a direção
+    int enemyLives;
 } Enemy;
 
 typedef struct {
@@ -100,6 +101,72 @@ typedef struct {
     PlatformType type;
     Texture2D texture;
 } Platform;
+
+// struct Winners{
+//     char nome[20];
+//     int tempo;
+//     struct Winners *next;
+// };
+// struct Winners *head = NULL;
+// void add_winner(struct Winners **head, char *nome, int tempo){
+//     struct Winners *n = *head;
+//     struct Winners *novo = (struct Winners *)malloc(sizeof(struct Winners));
+//     struct Winners *anterior = NULL;
+
+//     strcpy(novo->nome, nome);
+//     novo->tempo = tempo;
+//     novo->next = NULL;
+
+//     if(*head == NULL){
+//         *head = novo;
+//         return;
+//     }
+
+//     if((*head)->tempo > novo->tempo){
+//         novo->next = *head;
+//         *head = novo;
+//         return;
+//     }
+//     while(n != NULL && n->tempo <= novo -> tempo){
+//         anterior = n;
+//         n = n-> next;
+//     }
+//     if(anterior != NULL){
+//         anterior -> next = novo;
+//     }
+//     novo -> next = n;
+//     return;
+// }
+// void winnerList(){
+//     FILE *list;
+//     char nome[20];
+//     int tempo;
+//     list = fopen("vencedores.txt", "r");
+//     while(fscanf(list, "%s %d", nome, &tempo) == 2){
+//         add_winner(&head, nome, tempo);
+//     }
+//     fclose(list);
+// }
+// void printwinnerList(struct Winners *head){
+//     struct Winners *n = *head;
+//     int i = 1;
+//     while(n != NULL && i <= 10){
+//         printf("%d. %s: %d segundos", i, n->nome, n->tempo);
+//         n = n->next;
+//         i++;
+//     }
+//     printf("\n");
+// }
+// void writeWinners(){
+//     FILE *list;
+//     list = fopen("winners.txt", "w");
+//     struct Winners *n = head;
+//     while(n != NULL){
+//         fprintf(list,"%s %d\n", n->nome, n->tempo);
+//         n=n->next;
+//     }
+//     fclose(list);
+// }
 
 void aplica_gravidade_player(Player *player, Platform platforms[], int total_platform_count, float deltaTime);
 void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_platform_count, float deltaTime);
