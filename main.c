@@ -11,7 +11,7 @@
 #define MAX_LIVES 3
 #define GRAVITY 15.0f
 #define MAX_ENEMIES 5
-#define MAX_ZOMBIE_HANDS 5
+#define MAX_ZOMBIE_HANDS 20
 
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK } PersonagemState;
 typedef enum { START_SCREEN, GAMEPLAY } GameState;
@@ -108,6 +108,7 @@ typedef struct {
     int y;
     int width;
     int height;
+    int initialX;
     Texture2D texture;
     bool isActive;
 } ZombieHand;
@@ -577,34 +578,47 @@ void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_ground
 }
 
 void InitZombieHands(ZombieHand hands[], int count, int screenWidth, int screenHeight, Texture2D zombiehand_texture, int platform_height) {
-    float spawnDistance = 100.0f;  // Distance between spawn points
-    
+    float spawnDistance = 800.0f;
+  
     for(int i = 0; i < count; i++) {
         hands[i].x = (i + 1) * spawnDistance;
-        hands[i].y = screenHeight - (platform_height * 6) - (hands[i].height * 3);
-        hands[i].width = 64;
-        hands[i].height = 64;
+        hands[i].y = screenHeight - platform_height - hands[i].height - 30;  // This will place hands right above the platform
+        hands[i].width = 60;
+        hands[i].height = 60;
         hands[i].texture = zombiehand_texture;
         hands[i].isActive = false;
+        hands[i].initialX = hands[i].y + (hands[i].height * 6) - 10; // Store initial spawn position
     }
 }
 
 void UpdateZombieHands(ZombieHand hands[], int count, Player player, Camera2D camera) {
-    float spawnTriggerDistance = 400.0f;  // Distance before spawn point when hand should appear
+    float spawnTriggerDistance = 400.0f;
     
     for(int i = 0; i < count; i++) {
         if (!hands[i].isActive) {
-            // Check if player is approaching this spawn point
-            if (player.x > (hands[i].x - spawnTriggerDistance)) {
+            if (player.x > (hands[i].initialX - spawnTriggerDistance)) {
                 hands[i].isActive = true;
             }
         }
-        else {
-            // Update the position of the active zombie hand based on camera offset
-            hands[i].x = hands[i].x - camera.offset.x;
+    }
+}
+
+void DrawZombieHands(ZombieHand hands[], int count, Camera2D camera) {
+    for(int i = 0; i < count; i++) {
+        if (hands[i].isActive) {
+            Rectangle source = { 0, 0, hands[i].width, hands[i].height };
+            Rectangle dest = { 
+                hands[i].x - camera.target.x + camera.offset.x,
+                hands[i].y,
+                hands[i].width,
+                hands[i].height 
+            };
+            DrawTexturePro(hands[i].texture, source, dest, (Vector2){0, 0}, 0.0f, WHITE);
         }
     }
 }
+
+
 
 
 int main(void){
@@ -671,9 +685,9 @@ int main(void){
         platforms[i].y = screenHeight - platform_height + whitespace;
         platforms[i].x = platform_x;
         if(i%7 == 6){ 
-            platforms[i].type = PIT; // Plataforma
+            platforms[i].type = PIT; // Buraco
         } else {
-            platforms[i].type = FLOOR; // Floor
+            platforms[i].type = FLOOR; // Chão
         }
         platform_x += platform_width;
     }
@@ -910,11 +924,7 @@ int main(void){
             }
 
             // draw hand
-            for (int i = 0; i < MAX_ZOMBIE_HANDS; i++) {
-                if (zombie_hands[i].isActive) {
-                    DrawTexture(zombie_hands[i].texture, zombie_hands[i].x, zombie_hands[i].y, WHITE);
-                }
-            }
+            DrawZombieHands(zombie_hands, MAX_ZOMBIE_HANDS, camera);
 
             if (player.invencivel) {
                 player.invencibilidadeTimer -= GetFrameTime();
