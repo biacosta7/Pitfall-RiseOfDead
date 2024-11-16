@@ -13,7 +13,7 @@
 #define MAX_ENEMIES 5
 #define MAX_ZOMBIE_HANDS 20
 
-typedef enum { IDLE, RUNNING, JUMPING, ATTACK } PersonagemState;
+typedef enum { IDLE, RUNNING, JUMPING, ATTACK, HURT, DEAD } PersonagemState;
 typedef enum { START_SCREEN, GAMEPLAY } GameState;
 const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou\n\n" 
                                 "uma equipe de cientistas e após anos de pesquisa em um projeto\n\n"
@@ -54,6 +54,7 @@ typedef struct{
     Texture2D heartTexture1;
     bool invencivel; //tempo de invencibilidade logo apos levar uma colisao
     float invencibilidadeTimer; // tempo que dura a invencibilidade
+    bool isAttacking;
 } Player;
 
 
@@ -75,6 +76,13 @@ typedef struct{
     int maxFrames;       // Número de frames na spritesheet
     bool flipRight; // controla a direção
     int enemyLives;
+    Texture2D hurtTexture;
+    Texture2D deadTexture;
+    bool isDead;
+    bool decreaseLives;
+    int lives;
+    bool invencivel; //tempo de invencibilidade logo apos levar uma colisao
+    float invencibilidadeTimer; // tempo que dura a invencibilidade
 } Enemy;
 
 typedef struct {
@@ -327,7 +335,25 @@ void UpdateEnemyAnimation(Enemy *enemy, float deltaTime) {
             case IDLE:
                 if (enemy->frame >= 8) enemy->frame = 0;
                 break;
-                
+            
+            case HURT:
+                if (enemy->frame < 3) { // Avança os frames apenas até o último
+                    enemy->frame++;
+                }
+                // Quando atingir o último frame, fica parado nele
+                if (enemy->frame >= 3) {
+                    enemy->frame = 3; // Fixa no último frame
+                }
+                break;
+            case DEAD:
+                if (enemy->frame < 4) { // Avança os frames apenas até o último
+                    enemy->frame++;
+                }
+                // Quando atingir o último frame, fica parado nele
+                if (enemy->frame >= 4) {
+                    enemy->frame = 4; // Fixa no último frame
+                }
+                break;
             default:
                 if (enemy->frame >= enemy->maxFrames) enemy->frame = 0;
                 break;
@@ -344,6 +370,12 @@ void DrawEnemy(Enemy enemy) {
             break;
         case ATTACK:
             texture = enemy.attackTexture;
+            break;
+        case HURT:
+            texture = enemy.hurtTexture;
+            break;
+        case DEAD:
+            texture = enemy.deadTexture;
             break;
         case IDLE:
         default:
@@ -378,6 +410,7 @@ void InitEnemySpawners(EnemySpawner enemies[], int count, Enemy baseEnemy) {
         enemies[i].enemy = baseEnemy;  // Copy the base enemy properties
         enemies[i].isActive = false;
         enemies[i].spawnX = (i + 1) * spawnDistance;  // Set spawn points progressively further
+        enemies[i].enemy.decreaseLives = false;
     }
 }
 
@@ -450,12 +483,44 @@ bool enemy_colide_player(Enemy enemy, Player player){
     
 }
 
+bool player_colide_enemy(Enemy enemy, Player player){
+    Rectangle player_rec = {
+        .x = player.x + (player.width * 2),
+        .y = player.y,
+        .width = player.width * 3,
+        .height = 10 
+    };
+
+    Rectangle enemy_rec = {
+        .x = enemy.x + (enemy.width * 2),
+        .y = enemy.y,
+        .width = enemy.width * 3,
+        .height = 10 
+    };
+    return CheckCollisionRecs(player_rec, enemy_rec);
+}
+
 void UpdateEnemyPosition(Enemy *enemy, Player player) {
+    if(enemy -> isDead){
+        if(enemy->state != DEAD){
+            enemy->state = DEAD;
+            enemy->frame = 0;
+            enemy->maxFrames = 5;
+            enemy->frameTime = 0.2f;
+        }
+        return;
+    }
     bool is_colliding = enemy_colide_player(*enemy, player);
 
     if (is_colliding){
+        if(enemy->state != HURT && player.isAttacking && enemy->state != DEAD){
+            enemy->state = HURT;
+            enemy->frame = 0;
+            enemy->maxFrames = 3;
+            enemy->frameTime = 0.2f;
+        }
         enemy->isAttacking = true;
-        if (enemy->state != ATTACK) {
+        if (enemy->state != ATTACK && !player.isAttacking && enemy->state != DEAD) {
             enemy->state = ATTACK;
             enemy->frame = 0;
             enemy->maxFrames = 4;
@@ -486,7 +551,7 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
     } 
     else {
         enemy->isAttacking = false;
-        if (enemy->state != IDLE) {
+        if (enemy->state != IDLE && enemy->state != DEAD) {
             enemy->state = IDLE;
             enemy->frame = 0;
             enemy->maxFrames = 8;
@@ -659,6 +724,7 @@ int main(void){
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
     InitWindow(screenWidth, screenHeight, "Pitfall - Rise Of Dead");
+    //InitAudioDevice();
     double startTime = 0.0;
     bool timeStarted = false;
     Texture2D backgroundTitle = LoadTexture("assets/map/layers/bg1.png");
@@ -667,7 +733,9 @@ int main(void){
     Texture2D pit2_texture = LoadTexture("assets/obstaculos/a.png");
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
     Texture2D background2_texture = LoadTexture( "assets/map/layers/bg2.png" );
+    //Music music = LoadMusicStream("assets/sounds/thriller.wav");
     Texture2D zombiehand_texture = LoadTexture( "assets/obstaculos/zombiehand.png" );
+
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
 
@@ -769,6 +837,9 @@ int main(void){
         .currentFrameTime = 0.0f,
         .flipRight = true,
         .velocityY = 0,
+        .hurtTexture = LoadTexture("assets/zombie/Hurt.png"),
+        .deadTexture = LoadTexture("assets/zombie/Dead.png"),
+        .lives = MAX_LIVES,
     };
 
     EnemySpawner enemies[MAX_ENEMIES];
@@ -809,6 +880,8 @@ int main(void){
             DrawText("Pressione ENTER para iniciar a corrida!", 325, 600, 30, RED);
         }
         else if(gameState == GAMEPLAY){
+            //PlayMusicStream(music);
+            //UpdateMusicStream(music);
             double elapsedTime;
             if (!timeStarted) {
                 startTime = GetTime(); // Garante que o tempo de início é capturado apenas uma vez
@@ -852,6 +925,7 @@ int main(void){
                 player.frame = 0;
                 player.maxFrames = 8;
                 player.frameTime = 0.2f;
+                player.isAttacking = false;
             }
             
             // Handle horizontal movement
@@ -861,7 +935,8 @@ int main(void){
                 movingLeft = true;
                 player.flipRight = false;
                 player.isJumping = false;
-                
+                player.isAttacking = false;
+
                 if (player.state != RUNNING) {
                     player.state = RUNNING;
                     player.frame = 0; // Reseta o frame ao entrar no estado RUNNING
@@ -879,6 +954,7 @@ int main(void){
                 movingLeft = false;
                 player.flipRight = true;
                 player.isJumping = false;
+                player.isAttacking = false;
                 
                 if (player.state != RUNNING) {
                     player.state = RUNNING;
@@ -890,16 +966,17 @@ int main(void){
                     player.isJumping = true;
                 }
             }
-
             if (IsKeyDown(KEY_R)) {
                 if (player.state != ATTACK && !player.isJumping) { // Prevent attacking while jumping
                     player.state = ATTACK;
                     player.frame = 0;
                     player.maxFrames = 5;
                     player.frameTime = 0.1f;
+                    player.isAttacking = true;
                 }
             }
             else if (!movingHorizontal && !player.isJumping) {
+                player.isAttacking = false;
                 if (player.state != IDLE) {
                     player.state = IDLE;
                     player.frame = 0;
@@ -983,10 +1060,24 @@ int main(void){
                     player.invencivel = false;  // Invencibilidade expirada
                 }
             }
+            
 
             for (int i = 0; i < MAX_ENEMIES; i++) {
-                if (enemies[i].isActive && enemies[i].enemy.isAttacking && !player.invencivel) {
-                    if (!player.invencivel) {
+                if (enemies[i].isActive) {
+                    if(player.isAttacking && !enemies[i].enemy.invencivel){
+                        if(enemies[i].enemy.lives > 0){
+                            enemies[i].enemy.state = HURT;
+                            enemies[i].enemy.lives--;
+                            enemies[i].enemy.invencivel = true;  // Ativa invencibilidade temporária
+                            enemies[i].enemy.invencibilidadeTimer = 0.5f;  // Define um tempo de invencibilidade de 1 segundo
+                            //printf("ENEMY LIVES: %d\n", enemies[i].enemy.lives);
+                        }
+                        else if(enemies[i].enemy.lives == 0){
+                            enemies[i].enemy.isDead = true;
+                            //printf("MORREU ZUMBIZINHO\n");
+                        }
+                    }
+                    if(enemies[i].enemy.isAttacking && !player.invencivel){
                         if (player.lives > 0) {
                             player.lives--;
                             player.invencivel = true;  // Ativa invencibilidade temporária
@@ -994,9 +1085,21 @@ int main(void){
                         }
                         else if(player.lives == 0){
                             isGameOver = true;
+                            //PauseMusicStream(music);
                         }
                     }
+
+                    if (enemies[i].enemy.invencivel) {
+                        enemies[i].enemy.invencibilidadeTimer -= GetFrameTime();
+                        if (enemies[i].enemy.invencibilidadeTimer <= 0) {
+                            enemies[i].enemy.invencivel = false;  // Invencibilidade expirada
+                        }
+                    }
+
                 }
+                // if(enemy.state == DEAD && enemy.frame == 4){
+                //     enemy.x = -1000;
+                // }
             }
             DrawLives(player, camera);
             DrawTimer(camera, elapsedTime);
@@ -1030,9 +1133,11 @@ int main(void){
     UnloadTexture(pit2_texture);
     UnloadTexture(background_texture);
     UnloadTexture(background2_texture);
-
+    //UnloadMusicStream(music);
+    //CloseAudioDevice();
     // fecha a janela
     CloseWindow();
+    
     return 0;
 }
 /* if(gamewin == 1) {
