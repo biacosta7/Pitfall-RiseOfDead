@@ -713,8 +713,6 @@ void DrawZombieHands(ZombieHand hands[], int count) {
         };
         
         DrawTexturePro(hands[i].texture, source, zombiehand, (Vector2){0, 0}, 0.0f, WHITE);
-        // In your draw code
-        DrawRectangleLines(zombiehand.x, zombiehand.y, zombiehand.width, zombiehand.height, RED);
     }
 }
 
@@ -1073,11 +1071,12 @@ int main(void){
                             //printf("ENEMY LIVES: %d\n", enemies[i].enemy.lives);
                         }
                         else if(enemies[i].enemy.lives == 0){
+                            enemies[i].enemy.isAttacking = false;
                             enemies[i].enemy.isDead = true;
                             //printf("MORREU ZUMBIZINHO\n");
                         }
                     }
-                    if(enemies[i].enemy.isAttacking && !player.invencivel){
+                    if(enemies[i].enemy.isAttacking && !player.invencivel && !player.isAttacking){
                         if (player.lives > 0) {
                             player.lives--;
                             player.invencivel = true;  // Ativa invencibilidade temporária
