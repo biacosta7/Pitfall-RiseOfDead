@@ -77,7 +77,6 @@ typedef struct{
     int enemyLives;
     Texture2D deadTexture;
     bool isDead;
-    bool decreaseLives;
 } Enemy;
 
 typedef struct {
@@ -379,7 +378,6 @@ void InitEnemySpawners(EnemySpawner enemies[], int count, Enemy baseEnemy) {
         enemies[i].enemy = baseEnemy;  // Copy the base enemy properties
         enemies[i].isActive = false;
         enemies[i].spawnX = (i + 1) * spawnDistance;  // Set spawn points progressively further
-        enemies[i].enemy.decreaseLives = false;
     }
 }
 
@@ -452,23 +450,6 @@ bool enemy_colide_player(Enemy enemy, Player player){
     
 }
 
-bool player_colide_enemy(Enemy enemy, Player player){
-    Rectangle player_rec = {
-        .x = player.x + (player.width * 2),
-        .y = player.y,
-        .width = player.width * 3,
-        .height = 10 
-    };
-
-    Rectangle enemy_rec = {
-        .x = enemy.x + (enemy.width * 2),
-        .y = enemy.y,
-        .width = enemy.width * 3,
-        .height = 10 
-    };
-    return CheckCollisionRecs(player_rec, enemy_rec);
-}
-
 void UpdateEnemyPosition(Enemy *enemy, Player player) {
     if(enemy -> isDead){
         if(enemy->state != DEAD){
@@ -483,9 +464,9 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
 
     if (is_colliding){
         if(player.isAttacking){
+            enemy->isAttacking = false;
             enemy->isDead = true;
             enemy->state = DEAD;
-            enemy->decreaseLives = false;
             enemy->frame = 0;
             enemy->maxFrames = 5;
             enemy->frameTime = 0.1f;
@@ -623,7 +604,6 @@ int main(void){
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
     InitWindow(screenWidth, screenHeight, "Pitfall - Rise Of Dead");
-    //InitAudioDevice();
     double startTime = 0.0;
     bool timeStarted = false;
     Texture2D backgroundTitle = LoadTexture("assets/map/layers/initialbackground.png");
@@ -632,7 +612,6 @@ int main(void){
     Texture2D pit2_texture = LoadTexture("assets/obstaculos/a.png");
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
     Texture2D background2_texture = LoadTexture( "assets/map/layers/bg2.png" );
-    //Music music = LoadMusicStream("assets/sounds/thriller.wav");
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
 
@@ -772,8 +751,6 @@ int main(void){
             DrawText("Pressione ENTER para iniciar a corrida!", 325, 600, 30, RED);
         }
         else if(gameState == GAMEPLAY){
-            //PlayMusicStream(music);
-            //UpdateMusicStream(music);
             double elapsedTime;
             if (!timeStarted) {
                 startTime = GetTime(); // Garante que o tempo de início é capturado apenas uma vez
@@ -856,9 +833,6 @@ int main(void){
                     player.maxFrames = 5;
                     player.frameTime = 0.1f;
                     player.isAttacking = true;
-                    if(&player_colide_enemy){
-                        enemy.state = DEAD;
-                    }
                 }
             }
             else if (!movingHorizontal && !player.isJumping) {
@@ -933,27 +907,22 @@ int main(void){
             }
 
             for (int i = 0; i < MAX_ENEMIES; i++) {
-                if (enemies[i].isActive && enemies[i].enemy.isAttacking && !player.invencivel && !enemies[i].enemy.decreaseLives) {
+                if (enemies[i].isActive && enemies[i].enemy.isAttacking && !player.invencivel) {
                     if (!player.invencivel) {
                         if (player.lives > 0) {
-                            enemies[i].enemy.decreaseLives = true;
                             player.lives--;
                             player.invencivel = true;  // Ativa invencibilidade temporária
                             player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
                         }
                         else if(player.lives == 0){
                             isGameOver = true;
-                            //PauseMusicStream(music);
                         }
                     }
                 }
                 else if(enemies[i].isActive && player.isAttacking){
                     enemy.state = DEAD;
-                    enemy.frame = 0;
-                    enemy.decreaseLives = true;
-
                 }
-                if(enemy.state == DEAD && enemy.frame == 4){
+                if(enemy.isDead && enemy.frame == 4){
                     enemy.x = -1000;
                 }
             }
@@ -989,11 +958,9 @@ int main(void){
     UnloadTexture(pit2_texture);
     UnloadTexture(background_texture);
     UnloadTexture(background2_texture);
-    //UnloadMusicStream(music);
-    //CloseAudioDevice();
+
     // fecha a janela
     CloseWindow();
-    
     return 0;
 }
 /* if(gamewin == 1) {
