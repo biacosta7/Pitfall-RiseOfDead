@@ -182,7 +182,7 @@ ZombieHand zombie_hands[MAX_ZOMBIE_HANDS];
 
 void aplica_gravidade_player(Player *player, Platform platforms[], int total_ground_count, float deltaTime);
 void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_ground_count, float deltaTime);
-void UpdateZombieHands(ZombieHand hands[], int count, Player player);
+void DrawZombieHands(ZombieHand hands[], int count);
 
 void DrawBackground(Texture2D background, int screenWidth, int screenHeight, Camera2D camera) {
     float scale;

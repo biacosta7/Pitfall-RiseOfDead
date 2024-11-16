@@ -602,49 +602,55 @@ void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colid
             if (player.x > (hands[i].initialX - spawnTriggerDistance)) {
                 hands[i].isActive = true;
             }
-
-            else {
-                if(player_colide_hand(hands[i], player)){
-                    *colidiuHand = true;
-                } // verifica se colidiu com o player
-                
-            }
         }
-    }
-}
-
-void DrawZombieHands(ZombieHand hands[], int count) {
-    for(int i = 0; i < count; i++) {
-        if (hands[i].isActive) {
-            Rectangle source = { 0, 0, hands[i].width, hands[i].height };
-            Rectangle dest = { 
-                hands[i].x,
-                hands[i].y,
-                hands[i].width,
-                hands[i].height 
-            };
-            DrawTexturePro(hands[i].texture, source, dest, (Vector2){0, 0}, 0.0f, WHITE);
+        // Check collision only for active hands
+        else if (hands[i].isActive) {
+            if(player_colide_hand(hands[i], player)){
+                //printf("COLIDIU\n");
+                *colidiuHand = true;
+            }
         }
     }
 }
 
 bool player_colide_hand(ZombieHand hand, Player player){
     Rectangle hand_rec = {
-        .x = hand.x + (hand.width * 2),
+        .x = hand.x,
         .y = hand.y,
-        .width = hand.width * 3,
-        .height = 10 
+        .width = hand.width * 6,  // Match the actual drawn size
+        .height = hand.height * 6  // Match the actual drawn size
     };
 
     Rectangle player_rec = {
-        .x = player.x + (player.width * 2),
+        .x = player.x,
         .y = player.y,
-        .width = player.width * 3,
-        .height = 10 
+        .width = player.width * 6,  // Match the actual drawn size
+        .height = player.height * 6  // Match the actual drawn size
     };
 
     return CheckCollisionRecs(hand_rec, player_rec);
-    
+}
+
+void DrawZombieHands(ZombieHand hands[], int count) {
+    for(int i = 0; i < count; i++) {
+        
+        // Skip if position is invalid OR hand is inactive
+        if (hands[i].x == -1 || hands[i].y == -1 || !hands[i].isActive) {
+            continue;
+        }
+
+        Rectangle source = { 0, 0, hands[i].width, hands[i].height };
+        Rectangle zombiehand = { 
+            hands[i].x,
+            hands[i].y,
+            hands[i].width,
+            hands[i].height 
+        };
+        
+        DrawTexturePro(hands[i].texture, source, zombiehand, (Vector2){0, 0}, 0.0f, WHITE);
+        // In your draw code
+        DrawRectangleLines(zombiehand.x, zombiehand.y, zombiehand.width, zombiehand.height, RED);
+    }
 }
 
 int main(void){
@@ -719,6 +725,7 @@ int main(void){
     }
 
     InitZombieHands(zombie_hands, MAX_ZOMBIE_HANDS, screenWidth, screenHeight, zombiehand_texture, platform_height);
+    bool colidiuHand = false;
 
     // cria player
     Player player = {
@@ -772,7 +779,6 @@ int main(void){
         bool colidiu = false;
         bool movingHorizontal = false;
         bool movingLeft = false;
-        bool colidiuHand = false;
         float deltaTime = GetFrameTime();
 
         // draw the game
@@ -909,10 +915,10 @@ int main(void){
                 isGameOver = true;
             }
 
-            if(colidiuHand){
+            if(colidiuHand == true){
                 printf("A MAO PEGOU O PE\n");
                 isGameOver = true;
-            }
+            } 
 
             UpdatePlayerAnimation(&player, deltaTime);
 
@@ -938,6 +944,10 @@ int main(void){
                 .height = 10
             };
             DrawRectangleRec(collision_box, ColorAlpha(GREEN, 0.5f));
+
+            // In your draw code
+            //DrawRectangleLines(hand_rec.x, hand_rec.y, hand_rec.width, hand_rec.height, RED);
+
 
             // Draw player bounds
             Rectangle player_bounds = {
