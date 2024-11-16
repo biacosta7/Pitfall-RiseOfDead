@@ -673,6 +673,8 @@ void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colid
             if(player_colide_hand(hands[i], player)){
                 //printf("COLIDIU\n");
                 *colidiuHand = true;
+            } else{
+                *colidiuHand = false;
             }
         }
     }
@@ -990,11 +992,6 @@ int main(void){
                 isGameOver = true;
             }
 
-            if(colidiuHand == true){
-                printf("A MAO PEGOU O PE\n");
-                isGameOver = true;
-            } 
-
             UpdatePlayerAnimation(&player, deltaTime);
 
             DrawTexture(background_texture, background_x, 0, WHITE );
@@ -1096,6 +1093,18 @@ int main(void){
                     }
 
                 }
+                if(colidiuHand  && !player.invencivel){
+                    printf("A MAO PEGOU O PE\n");
+                    if (player.lives > 0) {
+                        player.lives--;
+                        player.invencivel = true;  // Ativa invencibilidade temporária
+                        player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
+                    }
+                    else if(player.lives == 0){
+                        isGameOver = true;
+                        //PauseMusicStream(music);
+                    }
+                } 
                 // if(enemy.state == DEAD && enemy.frame == 4){
                 //     enemy.x = -1000;
                 // }
@@ -1104,7 +1113,7 @@ int main(void){
             DrawTimer(camera, elapsedTime);
             if (isGameOver){
                 EndMode2D();
-                //ClearBackground(BLACK);
+                ClearBackground(BLACK);
                 const char* text = "Game Over!";
                 int textWidth = MeasureText(text, 40);
 
