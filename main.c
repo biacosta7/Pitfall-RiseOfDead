@@ -17,7 +17,11 @@
 #define RAYLIB_TEXT_UTF8
 
 
-
+typedef enum GamePhase {
+    PHASE_ONE,
+    PHASE_TWO,
+    FINAL_PHASE
+} GamePhase;
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK, HURT, DEAD } PersonagemState;
 typedef enum { START_SCREEN, GAMEPLAY } GameState;
 const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou uma\n\n" 
@@ -729,7 +733,54 @@ void DrawZombieHands(ZombieHand hands[], int count) {
     }
 }
 
+// void DrawFinalPhase(int screenWidth, int screenHeight) {
+//     DrawRectangle(0, 0, screenWidth, screenHeight, 
+//                     ColorAlpha(BLACK, 0.3f));
+    
+//     // Draw final boss
+//     // if (bossSpawned) {
+//     //     DrawBoss();
+//     // }
+    
+//     // Draw UI elements specific to final phase
+//     DrawText("FINAL BATTLE", screenWidth/2 - 100, 50, 20, RED);
+    
+//     // Draw special indicators or warnings
+//     // if (bossHealth < bossMaxHealth * 0.3f) {
+//     //     DrawText("BOSS ENRAGED!", screenWidth/2 - 80, 80, 20, RED);
+//     // }
+// }
+
+// void UpdateFinalPhase(void) {
+//         // Spawn final boss
+//         // if (!bossSpawned) {
+//         //     SpawnBoss();
+//         //     bossSpawned = true;
+//         // }
+        
+//         // Change background or environment
+//         DrawFinalPhaseBackground();
+        
+//         // Add special effects
+//         // if (bossSpawned) {
+//         //     UpdateBossLogic();
+//         //     DrawBossHealthBar();
+//         // }
+        
+//         // Maybe change music
+//         // if (!finalMusicStarted) {
+//         //     PlayFinalPhaseMusic();
+//         //     finalMusicStarted = true;
+//         // }
+        
+//         // Add special obstacles or challenges
+//         UpdateFinalPhaseObstacles();
+// }
+
+
 int main(void){
+    GamePhase currentPhase = PHASE_ONE;
+    bool isFinalPhaseTriggered = false;
     bool isGameOver = false;
     // cria window
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
@@ -743,6 +794,7 @@ int main(void){
     Texture2D pit2_texture = LoadTexture("assets/obstaculos/a.png");
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
     Texture2D background2_texture = LoadTexture( "assets/map/layers/bg2.png" );
+    Texture2D finalfloor_texture = LoadTexture( "assets/map/buraco-fim.png" );
     Texture2D potionTextures[NUM_POTIONS];
     potionTextures[0] = LoadTexture("assets/potions/potion-gold-solo.png");    
     potionTextures[1] = LoadTexture("assets/potions/potion-red-solo.png");  
@@ -1165,6 +1217,18 @@ int main(void){
             }
             DrawLives(player, camera);
             DrawTimer(camera, elapsedTime);
+
+
+            // Based on potions collected and player position
+            if (potionsCollected == 3 && player.x >= worldWidth * 0.9f && !isFinalPhaseTriggered) {
+                currentPhase = FINAL_PHASE;
+                isFinalPhaseTriggered = true;
+                // Initialize final phase elements
+            }
+
+            printf("player x: %d\n", player.x);
+            DrawTexture(finalfloor_texture, 12550, screenHeight - platform_height + whitespace, WHITE);
+
             if (isGameOver){
                 EndMode2D();
                 ClearBackground(BLACK);
@@ -1177,6 +1241,8 @@ int main(void){
                         40, 
                         RED);
             }
+
+
         }
         EndDrawing();
         
@@ -1195,6 +1261,7 @@ int main(void){
     UnloadTexture(background_texture);
     UnloadTexture(background2_texture);
     UnloadTexture(PotionIcon);
+    UnloadTexture(finalfloor_texture);
     //UnloadMusicStream(music);
     //CloseAudioDevice();
     // fecha a janela
