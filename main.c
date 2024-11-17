@@ -743,11 +743,11 @@ int main(void){
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
     Texture2D background2_texture = LoadTexture( "assets/map/layers/bg2.png" );
     Texture2D potionTextures[NUM_POTIONS];
-    potionTextures[0] = LoadTexture("potion_1.png");    
-    potionTextures[1] = LoadTexture("potion_2.png");  
-    potionTextures[2] = LoadTexture("potion_3.png");  
+    potionTextures[0] = LoadTexture("assets/potions/potion-gold-solo.png");    
+    potionTextures[1] = LoadTexture("assets/potions/potion-red-solo.png");  
+    potionTextures[2] = LoadTexture("assets/potions/potion-purple-solo.png");  
 
-    Texture2D PotionIcon = LoadTexture("potion_1.png");
+    Texture2D PotionIcon = LoadTexture("assets/potions/potion-gold-solo.png");
 
     //Music music = LoadMusicStream("assets/sounds/thriller.wav");
     Texture2D zombiehand_texture = LoadTexture( "assets/obstaculos/zombiehand.png" );
