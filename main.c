@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
+#include <time.h>
 
 #define SCALE_FACTOR 1.6
 #define SCREEN_HEIGHT 450
@@ -12,6 +13,8 @@
 #define GRAVITY 15.0f
 #define MAX_ENEMIES 5
 #define MAX_ZOMBIE_HANDS 20
+#define NUM_POTIONS 3
+
 
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK, HURT, DEAD } PersonagemState;
 typedef enum { START_SCREEN, GAMEPLAY } GameState;
@@ -121,6 +124,12 @@ typedef struct {
     bool isActive;
 } ZombieHand;
 ZombieHand zombie_hands[MAX_ZOMBIE_HANDS];
+
+typedef struct {
+    Rectangle rect;
+    Texture2D texture;
+    bool active;
+} Potion;
 
 // struct Winners{
 //     char nome[20];
@@ -733,8 +742,25 @@ int main(void){
     Texture2D pit2_texture = LoadTexture("assets/obstaculos/a.png");
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
     Texture2D background2_texture = LoadTexture( "assets/map/layers/bg2.png" );
+    Texture2D potionTextures[NUM_POTIONS];
+    potionTextures[0] = LoadTexture("potion_1.png");    
+    potionTextures[1] = LoadTexture("potion_2.png");  
+    potionTextures[2] = LoadTexture("potion_3.png");  
+
+    Texture2D PotionIcon = LoadTexture("potion_1.png");
+
     //Music music = LoadMusicStream("assets/sounds/thriller.wav");
     Texture2D zombiehand_texture = LoadTexture( "assets/obstaculos/zombiehand.png" );
+       // Inicializa as poções
+    Potion potions[NUM_POTIONS];
+    srand(time(NULL));
+    for (int i = 0; i < NUM_POTIONS; i++) {
+        potions[i].rect = (Rectangle){rand() % (SCREEN_WIDTH - 50), rand() % (SCREEN_HEIGHT - 50), 40, 40};
+        potions[i].texture = potionTextures[i];
+        potions[i].active = true;
+    }
+    
+    int potionsCollected = 0;
 
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
@@ -999,8 +1025,7 @@ int main(void){
             UpdateEnemies(enemies, MAX_ENEMIES, player, platforms, total_ground_count);
             UpdateZombieHands(zombie_hands, MAX_ZOMBIE_HANDS, player, &colidiuHand);
             DrawPlayer(player);
-
-            
+            // Verifica colisão com as poções
 
             for(int i = 0; i < MAX_ENEMIES; i++) {
                 if(enemies[i].isActive) {
@@ -1031,6 +1056,28 @@ int main(void){
             DrawRectangleLines(player_bounds.x, player_bounds.y, 
                             player_bounds.width, player_bounds.height, RED);
 
+            for (int i = 0; i < NUM_POTIONS; i++) {
+                if (potions[i].active && CheckCollisionRecs(player_bounds, potions[i].rect)) {
+                    potions[i].active = false;
+                    potionsCollected++; // Incrementa o contador
+
+
+                    // Reposiciona a poção em um local aleatório
+                    potions[i].rect.x = rand() % (SCREEN_WIDTH - (int)potions[i].rect.width);
+                    potions[i].rect.y = rand() % (SCREEN_HEIGHT - (int)potions[i].rect.height);
+                    potions[i].active = true;
+                }
+            }
+
+            for (int i = 0; i < NUM_POTIONS; i++) {
+            if (potions[i].active) {
+                DrawTexture(potions[i].texture, potions[i].rect.x, potions[i].rect.y, WHITE);
+                }
+            }
+                // Desenha o contador no canto superior direito
+            DrawTexture(PotionIcon, SCREEN_WIDTH - 100, 20, WHITE);
+            DrawText(TextFormat("%d", potionsCollected), SCREEN_WIDTH - 50, 30, 20, DARKGRAY);
+            
             //desenhar floor/pit
             for (int i = 0; i < total_ground_count; i++) {
                 Texture2D platform_texture;
