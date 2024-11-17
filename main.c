@@ -14,22 +14,24 @@
 #define MAX_ENEMIES 5
 #define MAX_ZOMBIE_HANDS 20
 #define NUM_POTIONS 3
+#define RAYLIB_TEXT_UTF8
+
 
 
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK, HURT, DEAD } PersonagemState;
 typedef enum { START_SCREEN, GAMEPLAY } GameState;
-const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou\n\n" 
-                                "uma equipe de cientistas e após anos de pesquisa em um projeto\n\n"
-                                "secreto, criou uma arma biológica destinada à imortalidade,\n\n"
-                                "acreditando ser a única esperança para a sobrevivência\n\n"
-                                "humana. Porém, o experimento saiu do controle, transformando \n\n"
-                                "a maioria da população em zumbis. Você é um dos poucos que \n\n"
-                                "escaparam de uma tentativa de invasão a essa fortaleza,\n\n"
-                                "mas agora, na floresta densa, hordas de zumbis estão por\n\n"
-                                "toda parte. Para alcançar a segurança, você deve correr\n\n"
-                                "por perigosas áreas infestadas, coletar suprimentos.\n\n"
-                                "Sua meta é chegar a um abrigo subterrâneo, onde os últimos\n\n"
-                                "cientistas tentam criar uma vacina.\n\n";
+const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou uma\n\n" 
+                               "\tequipe de cientistas e após anos de pesquisa em um projeto\n\n"
+                                "\t\tsecreto, criou uma substância destinada à imortalidade,\n\n"
+                                "\t\tacreditando ser a única esperança para a sobrevivência\n\n"
+                                "\tsobrevivência humana. Porém, o experimento saiu do controle,\n\n"
+                                "\t\t\t\t\t\ttransformando a maioria da população em zumbis.\n\n "
+                                "\nVocê é um dos poucos que escaparam de uma tentativa de invasão\n\n"
+                                "à essa fortaleza, mas agora, na floresta densa, hordas de zumbis \n\n"
+                                "\testão por toda parte. Para alcançar a segurança, você deve\n\n"
+                                "\t\tcorrer por perigosas áreas infestadas, coletar suprimentos.\n\n"
+                                "\t\tSua meta é chegar a um abrigo subterrâneo, onde os últimos\n\n"
+                                "\t\t\t\t\t\t\t\t\t\t\tcientistas tentam criar uma vacina.\n\n";
 const char *tituloDoJogo = "Pitfall: Rise of Dead";
 
 // struct player
@@ -736,8 +738,8 @@ int main(void){
     //InitAudioDevice();
     double startTime = 0.0;
     bool timeStarted = false;
-    Texture2D backgroundTitle = LoadTexture("assets/map/layers/bg1.png");
-    Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
+    Texture2D backgroundTitle = LoadTexture("assets/map/layers/initial-bg.png");
+    Font fontePersonalizada = LoadFont("assets/fonts/Roboto-Regular.ttf");
     Texture2D floor_texture = LoadTexture("assets/map/floor.png");
     Texture2D pit2_texture = LoadTexture("assets/obstaculos/a.png");
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
@@ -901,9 +903,9 @@ int main(void){
 
             DrawBackground(backgroundTitle, screenWidth, screenHeight, camera);
             
-            DrawTextEx(fontePersonalizada, tituloDoJogo, posTitulo, 40, 1, BLACK); //posicao X, posicao Y, tamanho fonte, cor
-            DrawTextEx(fontePersonalizada, historiaDoJogo, posHistoria, 30, 1, WHITE);
-            DrawText("Pressione ENTER para iniciar a corrida!", 325, 600, 30, RED);
+            DrawText(tituloDoJogo, 480, 40, 30, GREEN); //posicao X, posicao Y, tamanho fonte, cor
+            DrawText(historiaDoJogo, 300, 150, 20, LIGHTGRAY);
+            DrawText("Pressione ENTER para iniciar a corrida!", 390, 540, 25, DARKGREEN);
         }
         else if(gameState == GAMEPLAY){
             //PlayMusicStream(music);
