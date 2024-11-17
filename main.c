@@ -786,11 +786,7 @@ int main(void){
     int worldWidth = screenWidth * 10;
 
     int background_width = 1820;
-    int background_overflow = background_width - screenWidth;
-    float background_ratio = 1 / ((float)(worldWidth - screenWidth) / (float)background_overflow);
-    float background2_ratio = 1.5f * (1 / ((float)(worldWidth - screenWidth) / (float)background_overflow)); // se move mais rápido
-    int background_x = 0;
-    int background2_x = 0;
+    int num_backgrounds_needed = (worldWidth / background_width) + 1;
 
     // definicões da plataforma
     int whitespace = 30; // espaco em branco da imagem, essa "margem/padding" do topo
@@ -935,12 +931,6 @@ int main(void){
                 camera.offset.x = -(worldWidth - screenWidth);
             }
 
-            background_x = -camera.offset.x;
-            background_x -= background_x * background_ratio;
-
-            background2_x = -camera.offset.x;
-            background2_x -= background2_x * background2_ratio;
-
             const float MOVE_SPEED = 5.0f; // constante velocidade player
 
             // movimento player
@@ -1019,10 +1009,26 @@ int main(void){
                 isGameOver = true;
             }
 
+            // limites do player
+            if (player.x < 0) {
+                player.x = 0;  // Stop at left edge
+            } else if (player.x > (worldWidth - (player.width * 6))) {  // Accounting for player bounds
+                player.x = (worldWidth - (player.width * 6));  // Stop at right edge
+            }
+
             UpdatePlayerAnimation(&player, deltaTime);
 
-            DrawTexture(background_texture, background_x, 0, WHITE );
-            DrawTexture(background2_texture, background2_x, 0, WHITE );
+            // primeiro background layer (moves slower)
+            for (int i = 0; i < num_backgrounds_needed; i++) {
+                DrawTexture(background_texture, i * background_width - (camera.target.x * 0.3f), 0, WHITE);
+            } // mais devadar (0.3 = 30% da camera speed)
+
+            // segundo background layer (moves faster)
+            float parallax_factor = 0.3f;  
+            for (int i = 0; i < num_backgrounds_needed; i++) {
+                DrawTexture(background2_texture, i * background_width - camera.target.x, 0, WHITE);
+            }
+            
             UpdateEnemies(enemies, MAX_ENEMIES, player, platforms, total_ground_count);
             UpdateZombieHands(zombie_hands, MAX_ZOMBIE_HANDS, player, &colidiuHand);
             DrawPlayer(player);
@@ -1078,7 +1084,7 @@ int main(void){
                 // Desenha o contador no canto superior direito
             DrawTexture(PotionIcon, SCREEN_WIDTH - 100, 20, WHITE);
             DrawText(TextFormat("%d", potionsCollected), SCREEN_WIDTH - 50, 30, 20, DARKGRAY);
-            
+
             //desenhar floor/pit
             for (int i = 0; i < total_ground_count; i++) {
                 Texture2D platform_texture;
@@ -1188,6 +1194,7 @@ int main(void){
     UnloadTexture(pit2_texture);
     UnloadTexture(background_texture);
     UnloadTexture(background2_texture);
+    UnloadTexture(PotionIcon);
     //UnloadMusicStream(music);
     //CloseAudioDevice();
     // fecha a janela
