@@ -739,7 +739,6 @@ int main(void){
     double startTime = 0.0;
     bool timeStarted = false;
     Texture2D backgroundTitle = LoadTexture("assets/map/layers/initial-bg.png");
-    Font fontePersonalizada = LoadFont("assets/fonts/Roboto-Regular.ttf");
     Texture2D floor_texture = LoadTexture("assets/map/floor.png");
     Texture2D pit2_texture = LoadTexture("assets/obstaculos/a.png");
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
@@ -1185,7 +1184,6 @@ int main(void){
     UnloadTexture(enemy.runTexture);
     UnloadTexture(enemy.attackTexture);
     UnloadTexture(backgroundTitle);
-    UnloadFont(fontePersonalizada);
     UnloadTexture(floor_texture);
     UnloadTexture(pit2_texture);
     UnloadTexture(background_texture);
