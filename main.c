@@ -675,7 +675,7 @@ void InitZombieHands(ZombieHand hands[], int count, int screenWidth, int screenH
 }
 
 void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colidiuHand) {
-    float spawnTriggerDistance = 300.0f;
+    float spawnTriggerDistance = 150.0f;
     
     for(int i = 0; i < count; i++) {
         if (!hands[i].isActive) {
@@ -1064,8 +1064,8 @@ int main(void){
             // limites do player
             if (player.x < 0) {
                 player.x = 0;  // Stop at left edge
-            } else if (player.x > (worldWidth - (player.width * 6))) {  // Accounting for player bounds
-                player.x = (worldWidth - (player.width * 6));  // Stop at right edge
+            } else if (player.x > (worldWidth - (player.width * 3))) {  // Accounting for player bounds
+                player.x = (worldWidth - (player.width * 3));  // Stop at right edge
             }
 
             UpdatePlayerAnimation(&player, deltaTime);
@@ -1109,7 +1109,7 @@ int main(void){
             Rectangle player_bounds = {
                 .x = player.x,
                 .y = player.y,
-                .width = player.width * 6,
+                .width = player.width * 3,
                 .height = player.height * 6
             };
             DrawRectangleLines(player_bounds.x, player_bounds.y, 
@@ -1143,6 +1143,8 @@ int main(void){
                 
                 // Alterna entre as texturas conforme o tipo da platform
                 if (platforms[i].type == FLOOR) {
+                    // draw hand
+                    DrawZombieHands(zombie_hands, MAX_ZOMBIE_HANDS);
                     platform_texture = floor_texture;  // Usa `floor_texture` para FLOOR
                 } else {
                     platform_texture = pit2_texture;  // Usa `pit2_texture` para PIT
@@ -1152,8 +1154,7 @@ int main(void){
                 DrawTexture(platform_texture, platforms[i].x, platforms[i].y - whitespace, WHITE);
             }
 
-            // draw hand
-            DrawZombieHands(zombie_hands, MAX_ZOMBIE_HANDS);
+            
 
             if (player.invencivel) {
                 player.invencibilidadeTimer -= GetFrameTime();
@@ -1227,7 +1228,7 @@ int main(void){
             }
 
             printf("player x: %d\n", player.x);
-            DrawTexture(finalfloor_texture, 12550, screenHeight - platform_height + whitespace, WHITE);
+            DrawTexture(finalfloor_texture, 12550, screenHeight - 230, WHITE);
 
             if (isGameOver){
                 EndMode2D();
