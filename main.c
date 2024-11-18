@@ -676,6 +676,7 @@ void InitZombieHands(ZombieHand hands[], int count, int screenWidth, int screenH
 
 void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colidiuHand) {
     float spawnTriggerDistance = 150.0f;
+    *colidiuHand = false;  // Reset at start of update
     
     for(int i = 0; i < count; i++) {
         if (!hands[i].isActive) {
@@ -685,31 +686,36 @@ void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colid
         }
         // Check collision only for active hands
         else if (hands[i].isActive) {
-            if(player_colide_hand(hands[i], player)){
-                //printf("COLIDIU\n");
+           if(player_colide_hand(hands[i], player)){
+                printf("Collision detected! Hand pos: (%d, %d), Player pos: (%d, %d)\n", 
+                    hands[i].x, hands[i].y, player.x, player.y);
                 *colidiuHand = true;
-            } else{
-                *colidiuHand = false;
+                break;
             }
+
         }
     }
 }
 
 bool player_colide_hand(ZombieHand hand, Player player){
     Rectangle hand_rec = {
-        .x = hand.x,
+        .x = hand.x + 17,
         .y = hand.y,
-        .width = hand.width * 6,  // Match the actual drawn size
-        .height = hand.height * 6  // Match the actual drawn size
+        .width = hand.width - 25,  // Match the actual drawn size
+        .height = hand.height * 2  // Match the actual drawn size
     };
 
     Rectangle player_rec = {
-        .x = player.x,
-        .y = player.y,
-        .width = player.width * 6,  // Match the actual drawn size
-        .height = player.height * 6  // Match the actual drawn size
+        .x = player.x + (player.width * 2) + 35,
+        .y = player.y + (player.height * 6) - 10,
+        .width = player.width - 15,
+        .height = 10  // Small height for ground detection
     };
-
+    
+    // Debug visualization
+    DrawRectangleLines(hand_rec.x, hand_rec.y, hand_rec.width, hand_rec.height, LIME);
+    DrawRectangleLines(player_rec.x, player_rec.y, player_rec.width, player_rec.height, PURPLE);
+    
     return CheckCollisionRecs(hand_rec, player_rec);
 }
 
@@ -1093,13 +1099,13 @@ int main(void){
             }
             
             // Draw player collision box
-            Rectangle collision_box = {
-                .x = player.x + (player.width * 2),
-                .y = player.y + (player.height * 6) - 10,
-                .width = player.width,
-                .height = 10
-            };
-            DrawRectangleRec(collision_box, ColorAlpha(GREEN, 0.5f));
+            // Rectangle collision_box = {
+            //     .x = player.x + (player.width * 2),
+            //     .y = player.y + (player.height * 6) - 10,
+            //     .width = player.width,
+            //     .height = 10
+            // };
+            // DrawRectangleRec(collision_box, ColorAlpha(GREEN, 0.5f));
 
             // In your draw code
             //DrawRectangleLines(hand_rec.x, hand_rec.y, hand_rec.width, hand_rec.height, RED);
@@ -1200,7 +1206,7 @@ int main(void){
                     }
 
                 }
-                if(colidiuHand  && !player.invencivel){
+                if(colidiuHand && !player.invencivel){
                     printf("A MAO PEGOU O PE\n");
                     if (player.lives > 0) {
                         player.lives--;
@@ -1227,7 +1233,7 @@ int main(void){
                 // Initialize final phase elements
             }
 
-            printf("player x: %d\n", player.x);
+            //printf("player x: %d\n", player.x);
             DrawTexture(finalfloor_texture, 12550, screenHeight - 230, WHITE);
 
             if (isGameOver){
