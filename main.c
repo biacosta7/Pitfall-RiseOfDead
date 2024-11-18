@@ -11,8 +11,8 @@
 #define LAYER_COUNT 2
 #define MAX_LIVES 3
 #define GRAVITY 15.0f
-#define MAX_ENEMIES 5
-#define MAX_ZOMBIE_HANDS 20
+#define MAX_ENEMIES 1
+#define MAX_ZOMBIE_HANDS 5
 #define NUM_POTIONS 3
 #define RAYLIB_TEXT_UTF8
 
@@ -429,7 +429,7 @@ void InitEnemySpawners(EnemySpawner enemies[], int count, Enemy baseEnemy) {
     }
 }
 
-int player_no_pit(Player player, Platform platforms[], int total_ground_count) {
+int player_na_plataforma(Player player, Platform platforms[], int total_ground_count) {
     Rectangle player_rec = {
         .x = player.x + (player.width * 2),
         .y = player.y + (player.height * 6) - 10,
@@ -454,7 +454,8 @@ int player_no_pit(Player player, Platform platforms[], int total_ground_count) {
     return -1;
 }
 
-int enemy_no_pit(Enemy enemy, Platform platforms[], int total_ground_count) {
+
+int enemy_na_plataforma(Enemy enemy, Platform platforms[], int total_ground_count) {
     Rectangle enemy_rec = {
         .x = enemy.x + (enemy.width * 2),
         .y = enemy.y + (enemy.height * 6) - 10,
@@ -597,9 +598,9 @@ void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *p
 }
 
 void aplica_gravidade_player(Player *player, Platform platforms[], int total_ground_count, float deltaTime) {
+
     const float MAX_FALL_SPEED = 10.0f;
-    
-    int current_platform = player_no_pit(*player, platforms, total_ground_count);
+    int current_platform = player_na_plataforma(*player, platforms, total_ground_count);
     bool on_floor = (current_platform != -1); // Player is over a FLOOR type pit
     
     // Apply gravity if not on floor, regardless of jump state
@@ -616,7 +617,7 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_gro
     player->y += player->velocityY * deltaTime * 60.0f;
     
     // Check floor collision again after movement
-    current_platform = player_no_pit(*player, platforms, total_ground_count);
+    current_platform = player_na_plataforma(*player, platforms, total_ground_count);
 
     if (current_platform != -1) {
         // If colliding with floor
@@ -625,7 +626,7 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_gro
             player->y = platforms[current_platform].y - (player->height * 6);
             player->velocityY = 0.0;
             player->canJump = true;    
-        }
+        }   
     } else {
         if (player->velocityY != 0) {
             player->canJump = false;
@@ -648,7 +649,7 @@ void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_ground
     enemy->y += enemy->velocityY * deltaTime * 60.0f;
     
     // Check pit collision
-    int current_platform_enemy = enemy_no_pit(*enemy, platforms, total_ground_count);
+    int current_platform_enemy = enemy_na_plataforma(*enemy, platforms, total_ground_count);
 
     if (current_platform_enemy != -1) {
         // If colliding with pit
@@ -699,17 +700,17 @@ void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colid
 
 bool player_colide_hand(ZombieHand hand, Player player){
     Rectangle hand_rec = {
-        .x = hand.x + 17,
+        .x = hand.x + 22,
         .y = hand.y,
-        .width = hand.width - 25,  // Match the actual drawn size
-        .height = hand.height * 2  // Match the actual drawn size
+        .width = hand.width - 35,
+        .height = hand.height * 2 
     };
 
     Rectangle player_rec = {
         .x = player.x + (player.width * 2) + 35,
         .y = player.y + (player.height * 6) - 10,
         .width = player.width - 15,
-        .height = 10  // Small height for ground detection
+        .height = 10
     };
     
     // Debug visualization
@@ -739,23 +740,18 @@ void DrawZombieHands(ZombieHand hands[], int count) {
     }
 }
 
-// void DrawFinalPhase(int screenWidth, int screenHeight) {
-//     DrawRectangle(0, 0, screenWidth, screenHeight, 
-//                     ColorAlpha(BLACK, 0.3f));
+void DrawFinalPhase(int screenWidth, int screenHeight) {
+    DrawRectangle(0, 0, screenWidth, screenHeight, 
+                    ColorAlpha(BLACK, 0.3f));
     
-//     // Draw final boss
-//     // if (bossSpawned) {
-//     //     DrawBoss();
-//     // }
+    // Draw UI elements specific to final phase
+    DrawText("FINAL BATTLE", screenWidth/2 - 100, 50, 20, RED);
     
-//     // Draw UI elements specific to final phase
-//     DrawText("FINAL BATTLE", screenWidth/2 - 100, 50, 20, RED);
-    
-//     // Draw special indicators or warnings
-//     // if (bossHealth < bossMaxHealth * 0.3f) {
-//     //     DrawText("BOSS ENRAGED!", screenWidth/2 - 80, 80, 20, RED);
-//     // }
-// }
+    // Draw special indicators or warnings
+    // if (bossHealth < bossMaxHealth * 0.3f) {
+    //     DrawText("BOSS ENRAGED!", screenWidth/2 - 80, 80, 20, RED);
+    // }
+}
 
 // void UpdateFinalPhase(void) {
 //         // Spawn final boss
