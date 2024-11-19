@@ -15,16 +15,9 @@
 #define MAX_ZOMBIE_HANDS 5
 #define MAX_POTIONS 3
 #define NUM_POTIONS 3
-#define RAYLIB_TEXT_UTF8
 
-
-typedef enum GamePhase {
-    PHASE_ONE,
-    PHASE_TWO,
-    FINAL_PHASE
-} GamePhase;
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK, HURT, DEAD } PersonagemState;
-typedef enum { START_SCREEN, GAMEPLAY } GameState;
+typedef enum { START_SCREEN, GAMEPLAY, FINAL } GameState;
 const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou uma\n\n" 
                                "\tequipe de cientistas e após anos de pesquisa em um projeto\n\n"
                                 "\t\tsecreto, criou uma substância destinada à imortalidade,\n\n"
@@ -753,37 +746,8 @@ void DrawFinalPhase(int screenWidth, int screenHeight) {
     // Draw UI elements specific to final phase
     DrawText("FINAL BATTLE", screenWidth/2 - 100, 50, 20, RED);
     
-    // Draw special indicators or warnings
-    // if (bossHealth < bossMaxHealth * 0.3f) {
-    //     DrawText("BOSS ENRAGED!", screenWidth/2 - 80, 80, 20, RED);
-    // }
 }
 
-// void UpdateFinalPhase(void) {
-//         // Spawn final boss
-//         // if (!bossSpawned) {
-//         //     SpawnBoss();
-//         //     bossSpawned = true;
-//         // }
-        
-//         // Change background or environment
-//         DrawFinalPhaseBackground();
-        
-//         // Add special effects
-//         // if (bossSpawned) {
-//         //     UpdateBossLogic();
-//         //     DrawBossHealthBar();
-//         // }
-        
-//         // Maybe change music
-//         // if (!finalMusicStarted) {
-//         //     PlayFinalPhaseMusic();
-//         //     finalMusicStarted = true;
-//         // }
-        
-//         // Add special obstacles or challenges
-//         UpdateFinalPhaseObstacles();
-// }
 bool player_colide_potion(Player player, Potion potion, int screenHeight, int platform_height){
     
     Rectangle potion_rec = {
@@ -810,7 +774,6 @@ bool player_colide_potion(Player player, Potion potion, int screenHeight, int pl
 
 
 int main(void){
-    GamePhase currentPhase = PHASE_ONE;
     bool isFinalPhaseTriggered = false;
     bool isGameOver = false;
     // cria window
@@ -1257,7 +1220,6 @@ int main(void){
 
             // Based on potions collected and player position
             if (potionsCollected == 3 && player.x >= worldWidth * 0.9f && !isFinalPhaseTriggered) {
-                currentPhase = FINAL_PHASE;
                 isFinalPhaseTriggered = true;
                 // Initialize final phase elements
             }
@@ -1277,10 +1239,28 @@ int main(void){
                         40, 
                         RED);
             }
+            if(player.x >= 12450){
+                gameState = FINAL;
+                //
+            }
 
 
         }
         EndDrawing();
+        // else if(gameState == FINAL){
+        //     BeginDrawing();
+        //     ClearBackground(BLACK);
+        //     const char* text = "You Win!";
+        //     int textWidth = MeasureText(text, 40);
+
+        //     DrawText(text,
+        //             (GetScreenWidth() - textWidth) / 2,  // Center X
+        //             GetScreenHeight() / 2 - 20,          // Center Y
+        //             40,
+        //             RED);
+        //     EndDrawing();
+        // }
+
         
     }
     // unload texturas
