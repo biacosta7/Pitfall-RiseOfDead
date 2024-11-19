@@ -785,6 +785,7 @@ void DrawFinalPhase(int screenWidth, int screenHeight) {
 //         UpdateFinalPhaseObstacles();
 // }
 bool player_colide_potion(Player player, Potion potion, int screenHeight, int platform_height){
+    
     Rectangle potion_rec = {
         .width = potion.width,
         .height = potion.height, 
@@ -943,10 +944,11 @@ int main(void){
 
     // Inicialização das poções
     srand(time(NULL));
+    int spawnDistance = 4000;
     for (int i = 0; i < MAX_POTIONS; i++) {
         potions[i].width = potions[i].width - 35,
         potions[i].height = potions[i].height * 2,
-        potions[i].x = 400,  // x position with offset
+        potions[i].x = (i + 1) * spawnDistance,  // x position with offset
         potions[i].y = screenHeight - platform_height - potions[i].height - 30, // y position with offset
         potions[i].texture = potionTextures[i];
         potions[i].active = true;
@@ -1158,7 +1160,7 @@ int main(void){
                         potionsCollected++; // Incrementa o contador
 
                         // Reposiciona a poção em um local aleatório
-                        potions[i].x += 100 + potions[i].x + 22;
+                        
                     }
                     DrawTexture(potions[i].texture, potions[i].x, potions[i].y, WHITE);
                 }
