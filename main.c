@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdbool.h>
+#include <time.h>
 
 #define SCALE_FACTOR 1.6
 #define SCREEN_HEIGHT 450
@@ -12,23 +13,39 @@
 #define GRAVITY 15.0f
 #define MAX_ENEMIES 5
 #define MAX_ZOMBIE_HANDS 20
+#define NUM_POTIONS 3
+#define RAYLIB_TEXT_UTF8
 
+
+typedef enum GamePhase {
+    PHASE_ONE,
+    PHASE_TWO,
+    FINAL_PHASE
+} GamePhase;
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK, HURT, DEAD } PersonagemState;
-typedef enum { START_SCREEN, GAMEPLAY } GameState;
-const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou\n\n" 
-                                "uma equipe de cientistas e após anos de pesquisa em um projeto\n\n"
-                                "secreto, criou uma arma biológica destinada à imortalidade,\n\n"
-                                "acreditando ser a única esperança para a sobrevivência\n\n"
-                                "humana. Porém, o experimento saiu do controle, transformando \n\n"
-                                "a maioria da população em zumbis. Você é um dos poucos que \n\n"
-                                "escaparam de uma tentativa de invasão a essa fortaleza,\n\n"
-                                "mas agora, na floresta densa, hordas de zumbis estão por\n\n"
-                                "toda parte. Para alcançar a segurança, você deve correr\n\n"
-                                "por perigosas áreas infestadas, coletar suprimentos.\n\n"
-                                "Sua meta é chegar a um abrigo subterrâneo, onde os últimos\n\n"
-                                "cientistas tentam criar uma vacina.\n\n";
+typedef enum { START_SCREEN, GAMEPLAY, INSTRUCTIONS } GameState;
+const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou uma\n\n" 
+                               "\tequipe de cientistas e após anos de pesquisa em um projeto\n\n"
+                                "\t\tsecreto, criou uma substância destinada à imortalidade,\n\n"
+                                "\t\tacreditando ser a única esperança para a sobrevivência\n\n"
+                                "\tsobrevivência humana. Porém, o experimento saiu do controle,\n\n"
+                                "\t\t\t\t\t\ttransformando a maioria da população em zumbis.\n\n "
+                                "\nVocê é um dos poucos que escaparam de uma tentativa de invasão\n\n"
+                                "à essa fortaleza, mas agora, na floresta densa, hordas de zumbis \n\n"
+                                "\testão por toda parte. Para alcançar a segurança, você deve\n\n"
+                                "\t\tcorrer por perigosas áreas infestadas, coletar suprimentos.\n\n"
+                                "\t\tSua meta é chegar a um abrigo subterrâneo, onde os últimos\n\n"
+                                "\t\t\t\t\t\t\t\t\t\t\tcientistas tentam criar uma vacina.\n\n";
 const char *tituloDoJogo = "Pitfall: Rise of Dead";
-
+const char *tituloInstrucoes = "\t\t\t\tInstruções";
+const char *instrucoes = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tTeclas de movimento: \n\n\n"
+                        "\t\t\t\t\t\t\t\t\t\t\t\t[A] para mover para a esquerda\n\n"
+                        "\t\t\t\t\t\t\t\t\t\t\t\t\t[D] para mover para a direita\n\n"
+                        "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t[W] para saltar\n\n"
+                        "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t[R] para atacar\n\n\n"
+                        "\t\t\t\t\tSeu objetivo é coletar todas as poções necessárias e\n\n"
+                        "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tchegar ao abrigo vivo!\n\n\n"
+                        "\t\t\t\t\t\t\t\t\tDerrote os zumbis e salve a humanidade!\n\n";
 // struct player
 typedef struct{
     int x;
@@ -121,6 +138,12 @@ typedef struct {
     bool isActive;
 } ZombieHand;
 ZombieHand zombie_hands[MAX_ZOMBIE_HANDS];
+
+typedef struct {
+    Rectangle rect;
+    Texture2D texture;
+    bool active;
+} Potion;
 
 // struct Winners{
 //     char nome[20];
@@ -718,23 +741,89 @@ void DrawZombieHands(ZombieHand hands[], int count) {
     }
 }
 
+// void DrawFinalPhase(int screenWidth, int screenHeight) {
+//     DrawRectangle(0, 0, screenWidth, screenHeight, 
+//                     ColorAlpha(BLACK, 0.3f));
+    
+//     // Draw final boss
+//     // if (bossSpawned) {
+//     //     DrawBoss();
+//     // }
+    
+//     // Draw UI elements specific to final phase
+//     DrawText("FINAL BATTLE", screenWidth/2 - 100, 50, 20, RED);
+    
+//     // Draw special indicators or warnings
+//     // if (bossHealth < bossMaxHealth * 0.3f) {
+//     //     DrawText("BOSS ENRAGED!", screenWidth/2 - 80, 80, 20, RED);
+//     // }
+// }
+
+// void UpdateFinalPhase(void) {
+//         // Spawn final boss
+//         // if (!bossSpawned) {
+//         //     SpawnBoss();
+//         //     bossSpawned = true;
+//         // }
+        
+//         // Change background or environment
+//         DrawFinalPhaseBackground();
+        
+//         // Add special effects
+//         // if (bossSpawned) {
+//         //     UpdateBossLogic();
+//         //     DrawBossHealthBar();
+//         // }
+        
+//         // Maybe change music
+//         // if (!finalMusicStarted) {
+//         //     PlayFinalPhaseMusic();
+//         //     finalMusicStarted = true;
+//         // }
+        
+//         // Add special obstacles or challenges
+//         UpdateFinalPhaseObstacles();
+// }
+
+
 int main(void){
+    GamePhase currentPhase = PHASE_ONE;
+    bool isFinalPhaseTriggered = false;
     bool isGameOver = false;
     // cria window
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
     InitWindow(screenWidth, screenHeight, "Pitfall - Rise Of Dead");
-    //InitAudioDevice();
+    InitAudioDevice();
     double startTime = 0.0;
     bool timeStarted = false;
-    Texture2D backgroundTitle = LoadTexture("assets/map/layers/bg1.png");
-    Font fontePersonalizada = LoadFont("assets/fonts/bloodcrow.ttf");
+    Texture2D backgroundTitle = LoadTexture("assets/map/layers/initial-bg.png");
     Texture2D floor_texture = LoadTexture("assets/map/floor.png");
     Texture2D pit2_texture = LoadTexture("assets/obstaculos/a.png");
     Texture2D background_texture = LoadTexture( "assets/map/layers/bg1.png" );
     Texture2D background2_texture = LoadTexture( "assets/map/layers/bg2.png" );
-    //Music music = LoadMusicStream("assets/sounds/thriller.wav");
+    Texture2D finalfloor_texture = LoadTexture( "assets/map/buraco-fim.png" );
+    Texture2D potionTextures[NUM_POTIONS];
+    potionTextures[0] = LoadTexture("assets/potions/potion-gold-solo.png");    
+    potionTextures[1] = LoadTexture("assets/potions/potion-red-solo.png");  
+    potionTextures[2] = LoadTexture("assets/potions/potion-purple-solo.png");  
+
+    Texture2D PotionIcon = LoadTexture("assets/potions/potion-gold-solo.png");
+
+    Music music = LoadMusicStream("assets/sounds/thriller.wav");
+    Sound sound = LoadSound("assets/sounds/Hit_sound.wav");
+    SetSoundVolume(sound, 1);
     Texture2D zombiehand_texture = LoadTexture( "assets/obstaculos/zombiehand.png" );
+       // Inicializa as poções
+    Potion potions[NUM_POTIONS];
+    srand(time(NULL));
+    for (int i = 0; i < NUM_POTIONS; i++) {
+        potions[i].rect = (Rectangle){rand() % (SCREEN_WIDTH - 50), rand() % (SCREEN_HEIGHT - 50), 40, 40};
+        potions[i].texture = potionTextures[i];
+        potions[i].active = true;
+    }
+    
+    int potionsCollected = 0;
 
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
@@ -759,11 +848,7 @@ int main(void){
     int worldWidth = screenWidth * 10;
 
     int background_width = 1820;
-    int background_overflow = background_width - screenWidth;
-    float background_ratio = 1 / ((float)(worldWidth - screenWidth) / (float)background_overflow);
-    float background2_ratio = 1.5f * (1 / ((float)(worldWidth - screenWidth) / (float)background_overflow)); // se move mais rápido
-    int background_x = 0;
-    int background2_x = 0;
+    int num_backgrounds_needed = (worldWidth / background_width) + 1;
 
     // definicões da plataforma
     int whitespace = 30; // espaco em branco da imagem, essa "margem/padding" do topo
@@ -863,6 +948,9 @@ int main(void){
                 timeStarted = true;
                 isGameOver = false;
             }
+            else if(IsKeyPressed(KEY_I)){
+                gameState = INSTRUCTIONS;
+            }
             int posXtitulo = 420;
             int postYtitulo = 40;
             int posXhistoria = 155;
@@ -875,13 +963,20 @@ int main(void){
 
             DrawBackground(backgroundTitle, screenWidth, screenHeight, camera);
             
-            DrawTextEx(fontePersonalizada, tituloDoJogo, posTitulo, 40, 1, BLACK); //posicao X, posicao Y, tamanho fonte, cor
-            DrawTextEx(fontePersonalizada, historiaDoJogo, posHistoria, 30, 1, WHITE);
-            DrawText("Pressione ENTER para iniciar a corrida!", 325, 600, 30, RED);
+            DrawText(tituloDoJogo, 480, 40, 30, GREEN); //posicao X, posicao Y, tamanho fonte, cor
+            DrawText(historiaDoJogo, 300, 100, 20, LIGHTGRAY);
+            DrawText("Pressione I para visualizar as instruções do jogo", 340, 500, 25, DARKGREEN);
+            DrawText("Pressione ENTER para iniciar a corrida!", 390, 550, 25, DARKGREEN);
+        }
+        else if(gameState == INSTRUCTIONS){
+            DrawBackground(backgroundTitle, screenWidth, screenHeight, camera);
+            DrawText(tituloInstrucoes, 480, 40, 30, GREEN);
+            DrawText(instrucoes, 300, 150, 20, LIGHTGRAY);
+            DrawText("Pressione ENTER para iniciar a corrida!", 390, 500, 25, DARKGREEN);
         }
         else if(gameState == GAMEPLAY){
-            //PlayMusicStream(music);
-            //UpdateMusicStream(music);
+            PlayMusicStream(music);
+            UpdateMusicStream(music);
             double elapsedTime;
             if (!timeStarted) {
                 startTime = GetTime(); // Garante que o tempo de início é capturado apenas uma vez
@@ -907,12 +1002,6 @@ int main(void){
             if( camera.offset.x < -(worldWidth - screenWidth) ) {
                 camera.offset.x = -(worldWidth - screenWidth);
             }
-
-            background_x = -camera.offset.x;
-            background_x -= background_x * background_ratio;
-
-            background2_x = -camera.offset.x;
-            background2_x -= background2_x * background2_ratio;
 
             const float MOVE_SPEED = 5.0f; // constante velocidade player
 
@@ -992,15 +1081,30 @@ int main(void){
                 isGameOver = true;
             }
 
+            // limites do player
+            if (player.x < 0) {
+                player.x = 0;  // Stop at left edge
+            } else if (player.x > (worldWidth - (player.width * 6))) {  // Accounting for player bounds
+                player.x = (worldWidth - (player.width * 6));  // Stop at right edge
+            }
+
             UpdatePlayerAnimation(&player, deltaTime);
 
-            DrawTexture(background_texture, background_x, 0, WHITE );
-            DrawTexture(background2_texture, background2_x, 0, WHITE );
+            // primeiro background layer (moves slower)
+            for (int i = 0; i < num_backgrounds_needed; i++) {
+                DrawTexture(background_texture, i * background_width - (camera.target.x * 0.3f), 0, WHITE);
+            } // mais devadar (0.3 = 30% da camera speed)
+
+            // segundo background layer (moves faster)
+            float parallax_factor = 0.3f;  
+            for (int i = 0; i < num_backgrounds_needed; i++) {
+                DrawTexture(background2_texture, i * background_width - camera.target.x, 0, WHITE);
+            }
+            
             UpdateEnemies(enemies, MAX_ENEMIES, player, platforms, total_ground_count);
             UpdateZombieHands(zombie_hands, MAX_ZOMBIE_HANDS, player, &colidiuHand);
             DrawPlayer(player);
-
-            
+            // Verifica colisão com as poções
 
             for(int i = 0; i < MAX_ENEMIES; i++) {
                 if(enemies[i].isActive) {
@@ -1030,6 +1134,28 @@ int main(void){
             };
             DrawRectangleLines(player_bounds.x, player_bounds.y, 
                             player_bounds.width, player_bounds.height, RED);
+
+            for (int i = 0; i < NUM_POTIONS; i++) {
+                if (potions[i].active && CheckCollisionRecs(player_bounds, potions[i].rect)) {
+                    potions[i].active = false;
+                    potionsCollected++; // Incrementa o contador
+
+
+                    // Reposiciona a poção em um local aleatório
+                    potions[i].rect.x = rand() % (SCREEN_WIDTH - (int)potions[i].rect.width);
+                    potions[i].rect.y = rand() % (SCREEN_HEIGHT - (int)potions[i].rect.height);
+                    potions[i].active = true;
+                }
+            }
+
+            for (int i = 0; i < NUM_POTIONS; i++) {
+            if (potions[i].active) {
+                DrawTexture(potions[i].texture, potions[i].rect.x, potions[i].rect.y, WHITE);
+                }
+            }
+                // Desenha o contador no canto superior direito
+            DrawTexture(PotionIcon, SCREEN_WIDTH - 100, 20, WHITE);
+            DrawText(TextFormat("%d", potionsCollected), SCREEN_WIDTH - 50, 30, 20, DARKGRAY);
 
             //desenhar floor/pit
             for (int i = 0; i < total_ground_count; i++) {
@@ -1075,13 +1201,18 @@ int main(void){
                     }
                     if(enemies[i].enemy.isAttacking && !player.invencivel && !player.isAttacking){
                         if (player.lives > 0) {
+                            PauseMusicStream(music);
+                            PlaySound(sound);
+                            ResumeMusicStream(music);
                             player.lives--;
                             player.invencivel = true;  // Ativa invencibilidade temporária
                             player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
                         }
                         else if(player.lives == 0){
+                           PauseMusicStream(music);
+                            //PlayMusicStream(death);
+                            //UpdateMusicStream(death);
                             isGameOver = true;
-                            //PauseMusicStream(music);
                         }
                     }
 
@@ -1102,7 +1233,7 @@ int main(void){
                     }
                     else if(player.lives == 0){
                         isGameOver = true;
-                        //PauseMusicStream(music);
+                        PauseMusicStream(music);
                     }
                 } 
                 // if(enemy.state == DEAD && enemy.frame == 4){
@@ -1111,6 +1242,18 @@ int main(void){
             }
             DrawLives(player, camera);
             DrawTimer(camera, elapsedTime);
+
+
+            // Based on potions collected and player position
+            if (potionsCollected == 3 && player.x >= worldWidth * 0.9f && !isFinalPhaseTriggered) {
+                currentPhase = FINAL_PHASE;
+                isFinalPhaseTriggered = true;
+                // Initialize final phase elements
+            }
+
+            printf("player x: %d\n", player.x);
+            DrawTexture(finalfloor_texture, 12550, screenHeight - platform_height + whitespace, WHITE);
+
             if (isGameOver){
                 EndMode2D();
                 ClearBackground(BLACK);
@@ -1123,11 +1266,14 @@ int main(void){
                         40, 
                         RED);
             }
+
+
         }
         EndDrawing();
         
     }
     // unload texturas
+    UnloadSound(sound);
     UnloadTexture(player.idleTexture);
     UnloadTexture(player.runTexture);
     UnloadTexture(player.jumpTexture);
@@ -1136,13 +1282,14 @@ int main(void){
     UnloadTexture(enemy.runTexture);
     UnloadTexture(enemy.attackTexture);
     UnloadTexture(backgroundTitle);
-    UnloadFont(fontePersonalizada);
     UnloadTexture(floor_texture);
     UnloadTexture(pit2_texture);
     UnloadTexture(background_texture);
     UnloadTexture(background2_texture);
-    //UnloadMusicStream(music);
-    //CloseAudioDevice();
+    UnloadTexture(PotionIcon);
+    UnloadTexture(finalfloor_texture);
+    UnloadMusicStream(music);
+    CloseAudioDevice();
     // fecha a janela
     CloseWindow();
     
