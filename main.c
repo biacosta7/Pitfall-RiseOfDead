@@ -23,7 +23,7 @@ typedef enum GamePhase {
     FINAL_PHASE
 } GamePhase;
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK, HURT, DEAD } PersonagemState;
-typedef enum { START_SCREEN, GAMEPLAY } GameState;
+typedef enum { START_SCREEN, GAMEPLAY, INSTRUCTIONS } GameState;
 const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou uma\n\n" 
                                "\tequipe de cientistas e após anos de pesquisa em um projeto\n\n"
                                 "\t\tsecreto, criou uma substância destinada à imortalidade,\n\n"
@@ -37,7 +37,15 @@ const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite
                                 "\t\tSua meta é chegar a um abrigo subterrâneo, onde os últimos\n\n"
                                 "\t\t\t\t\t\t\t\t\t\t\tcientistas tentam criar uma vacina.\n\n";
 const char *tituloDoJogo = "Pitfall: Rise of Dead";
-
+const char *tituloInstrucoes = "\t\t\t\tInstruções";
+const char *instrucoes = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tTeclas de movimento: \n\n\n"
+                        "\t\t\t\t\t\t\t\t\t\t\t\t[A] para mover para a esquerda\n\n"
+                        "\t\t\t\t\t\t\t\t\t\t\t\t\t[D] para mover para a direita\n\n"
+                        "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t[W] para saltar\n\n"
+                        "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t[R] para atacar\n\n\n"
+                        "\t\t\t\t\tSeu objetivo é coletar todas as poções necessárias e\n\n"
+                        "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tchegar ao abrigo vivo!\n\n\n"
+                        "\t\t\t\t\t\t\t\t\tDerrote os zumbis e salve a humanidade!\n\n";
 // struct player
 typedef struct{
     int x;
@@ -938,6 +946,9 @@ int main(void){
                 timeStarted = true;
                 isGameOver = false;
             }
+            else if(IsKeyPressed(KEY_I)){
+                gameState = INSTRUCTIONS;
+            }
             int posXtitulo = 420;
             int postYtitulo = 40;
             int posXhistoria = 155;
@@ -951,8 +962,15 @@ int main(void){
             DrawBackground(backgroundTitle, screenWidth, screenHeight, camera);
             
             DrawText(tituloDoJogo, 480, 40, 30, GREEN); //posicao X, posicao Y, tamanho fonte, cor
-            DrawText(historiaDoJogo, 300, 150, 20, LIGHTGRAY);
-            DrawText("Pressione ENTER para iniciar a corrida!", 390, 540, 25, DARKGREEN);
+            DrawText(historiaDoJogo, 300, 100, 20, LIGHTGRAY);
+            DrawText("Pressione I para visualizar as instruções do jogo", 340, 500, 25, DARKGREEN);
+            DrawText("Pressione ENTER para iniciar a corrida!", 390, 550, 25, DARKGREEN);
+        }
+        else if(gameState == INSTRUCTIONS){
+            DrawBackground(backgroundTitle, screenWidth, screenHeight, camera);
+            DrawText(tituloInstrucoes, 480, 40, 30, GREEN);
+            DrawText(instrucoes, 300, 150, 20, LIGHTGRAY);
+            DrawText("Pressione ENTER para iniciar a corrida!", 390, 500, 25, DARKGREEN);
         }
         else if(gameState == GAMEPLAY){
             //PlayMusicStream(music);
