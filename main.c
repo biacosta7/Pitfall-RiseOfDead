@@ -794,7 +794,7 @@ int main(void){
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
     InitWindow(screenWidth, screenHeight, "Pitfall - Rise Of Dead");
-    //InitAudioDevice();
+    InitAudioDevice();
     double startTime = 0.0;
     bool timeStarted = false;
     Texture2D backgroundTitle = LoadTexture("assets/map/layers/initial-bg.png");
@@ -810,7 +810,9 @@ int main(void){
 
     Texture2D PotionIcon = LoadTexture("assets/potions/potion-gold-solo.png");
 
-    //Music music = LoadMusicStream("assets/sounds/thriller.wav");
+    Music music = LoadMusicStream("assets/sounds/thriller.wav");
+    Sound sound = LoadSound("assets/sounds/Hit_sound.wav");
+    SetSoundVolume(sound, 1);
     Texture2D zombiehand_texture = LoadTexture( "assets/obstaculos/zombiehand.png" );
        // Inicializa as poções
     Potion potions[NUM_POTIONS];
@@ -973,8 +975,8 @@ int main(void){
             DrawText("Pressione ENTER para iniciar a corrida!", 390, 500, 25, DARKGREEN);
         }
         else if(gameState == GAMEPLAY){
-            //PlayMusicStream(music);
-            //UpdateMusicStream(music);
+            PlayMusicStream(music);
+            UpdateMusicStream(music);
             double elapsedTime;
             if (!timeStarted) {
                 startTime = GetTime(); // Garante que o tempo de início é capturado apenas uma vez
@@ -1199,13 +1201,18 @@ int main(void){
                     }
                     if(enemies[i].enemy.isAttacking && !player.invencivel && !player.isAttacking){
                         if (player.lives > 0) {
+                            PauseMusicStream(music);
+                            PlaySound(sound);
+                            ResumeMusicStream(music);
                             player.lives--;
                             player.invencivel = true;  // Ativa invencibilidade temporária
                             player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
                         }
                         else if(player.lives == 0){
+                           PauseMusicStream(music);
+                            //PlayMusicStream(death);
+                            //UpdateMusicStream(death);
                             isGameOver = true;
-                            //PauseMusicStream(music);
                         }
                     }
 
@@ -1226,7 +1233,7 @@ int main(void){
                     }
                     else if(player.lives == 0){
                         isGameOver = true;
-                        //PauseMusicStream(music);
+                        PauseMusicStream(music);
                     }
                 } 
                 // if(enemy.state == DEAD && enemy.frame == 4){
@@ -1266,6 +1273,7 @@ int main(void){
         
     }
     // unload texturas
+    UnloadSound(sound);
     UnloadTexture(player.idleTexture);
     UnloadTexture(player.runTexture);
     UnloadTexture(player.jumpTexture);
@@ -1280,8 +1288,8 @@ int main(void){
     UnloadTexture(background2_texture);
     UnloadTexture(PotionIcon);
     UnloadTexture(finalfloor_texture);
-    //UnloadMusicStream(music);
-    //CloseAudioDevice();
+    UnloadMusicStream(music);
+    CloseAudioDevice();
     // fecha a janela
     CloseWindow();
     
