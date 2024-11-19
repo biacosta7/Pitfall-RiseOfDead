@@ -28,7 +28,7 @@ const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite
                                "\tequipe de cientistas e após anos de pesquisa em um projeto\n\n"
                                 "\t\tsecreto, criou uma substância destinada à imortalidade,\n\n"
                                 "\t\tacreditando ser a única esperança para a sobrevivência\n\n"
-                                "\tsobrevivência humana. Porém, o experimento saiu do controle,\n\n"
+                                "\t\t\thumana. Porém, o experimento saiu do controle,\n\n"
                                 "\t\t\t\t\t\ttransformando a maioria da população em zumbis.\n\n "
                                 "\nVocê é um dos poucos que escaparam de uma tentativa de invasão\n\n"
                                 "à essa fortaleza, mas agora, na floresta densa, hordas de zumbis \n\n"
