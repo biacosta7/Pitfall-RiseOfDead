@@ -784,19 +784,20 @@ void DrawFinalPhase(int screenWidth, int screenHeight) {
 //         // Add special obstacles or challenges
 //         UpdateFinalPhaseObstacles();
 // }
-bool player_colide_potion(Player player, Potion potion){
+bool player_colide_potion(Player player, Potion potion, int screenHeight, int platform_height){
     Rectangle potion_rec = {
-        .x = potion.x + 22,
-        .y = potion.y,
-        .width = potion.width - 35,
-        .height = potion.height * 2 
+        .width = potion.width,
+        .height = potion.height, 
+        .x = potion.x,  // x position with offset
+        .y = potion.y, // y position with offset
+
     };
 
     Rectangle player_rec = {
         .x = player.x + (player.width * 2) + 35,
-        .y = player.y + (player.height * 6) - 10,
+        .y = player.y + (player.height * 2) + 60,
         .width = player.width - 15,
-        .height = player.height
+        .height = player.height * 3
     };
     
     // Debug visualization
@@ -943,24 +944,13 @@ int main(void){
     // Inicialização das poções
     srand(time(NULL));
     for (int i = 0; i < MAX_POTIONS; i++) {
-        potions[i].x = rand() % (SCREEN_WIDTH - potions[i].width),  // x position with offset
-        potions[i].y = 200, // y position with offset
-        potions[i].width = 60,
-        potions[i].height = 60,
+        potions[i].width = potions[i].width - 35,
+        potions[i].height = potions[i].height * 2,
+        potions[i].x = 400,  // x position with offset
+        potions[i].y = screenHeight - platform_height - potions[i].height - 30, // y position with offset
         potions[i].texture = potionTextures[i];
         potions[i].active = true;
         activePotions++;
-    }
-
-    // Durante o jogo, verificar a coleta ou desativação
-    for (int i = 0; i < MAX_POTIONS; i++) {
-        if (potions[i].active) {
-            // Checar colisão ou condição para desativar
-            if (player_colide_potion(player, potions[i])) {
-                potions[i].active = false;
-                activePotions--;
-            }
-        }
     }
     
     // game loop
@@ -1158,25 +1148,23 @@ int main(void){
             DrawRectangleLines(player_bounds.x, player_bounds.y, 
                             player_bounds.width, player_bounds.height, RED);
 
-            for (int i = 0; i < NUM_POTIONS; i++) {
-                if (potions[i].active && player_colide_potion(player, potions[i])) {
-                    potions[i].active = false;
-                    potionsCollected++; // Incrementa o contador
+            // Durante o jogo, verificar a coleta ou desativação
+            for (int i = 0; i < MAX_POTIONS; i++) {
+                if (potions[i].active) {
+                    // Checar colisão ou condição para desativar
+                    if (player_colide_potion(player, potions[i], screenHeight, platform_height)) {
+                        potions[i].active = false;
+                        activePotions--;
+                        potionsCollected++; // Incrementa o contador
 
-
-                    // Reposiciona a poção em um local aleatório
-                    potions[i].x = rand() % (SCREEN_WIDTH - (int)potions[i].width);
-                    potions[i].y = 200;
-                    potions[i].active = true;
+                        // Reposiciona a poção em um local aleatório
+                        potions[i].x += 100 + potions[i].x + 22;
+                    }
+                    DrawTexture(potions[i].texture, potions[i].x, potions[i].y, WHITE);
                 }
             }
 
-            for (int i = 0; i < NUM_POTIONS; i++) {
-            if (potions[i].active) {
-                DrawTexture(potions[i].texture, potions[i].x, potions[i].y, WHITE);
-                }
-            }
-                // Desenha o contador no canto superior direito
+            // Desenha o contador no canto superior direito
             DrawTexture(PotionIcon, SCREEN_WIDTH - 100, 20, WHITE);
             DrawText(TextFormat("%d", potionsCollected), SCREEN_WIDTH - 50, 30, 20, DARKGRAY);
 
