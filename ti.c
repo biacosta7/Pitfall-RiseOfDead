@@ -1167,8 +1167,10 @@ int main(void){
             }
 
             // Desenha o contador no canto superior direito
-            DrawTexture(PotionIcon, SCREEN_WIDTH - 100, 20, WHITE);
-            DrawText(TextFormat("%d", potionsCollected), SCREEN_WIDTH - 50, 30, 20, DARKGRAY);
+            int posX = (screenWidth - 60) - camera.offset.x;
+            int posY = 30 - camera.offset.y;
+            DrawTexture(PotionIcon, posX-30, posY, WHITE);
+            DrawText(TextFormat("%d/3", potionsCollected), posX, posY+10, 20, WHITE);
 
             //desenhar floor/pit
             for (int i = 0; i < total_ground_count; i++) {
