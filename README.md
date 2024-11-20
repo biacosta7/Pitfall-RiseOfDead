@@ -14,18 +14,20 @@ Prepare-se para uma corrida intensa pela sobrevivência!
 
 ## **Tutorial de Compilação**
 
-1-**Baixar dependências:**
+**1-Baixar dependências:**
 
--sudo apt update
+- sudo apt update
 
--sudo apt install build-essential libgl1-mesa-dev libegl1-mesa-dev libopenal-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libasound2-dev libvulkan-dev git cmake
+- sudo apt install build-essential libgl1-mesa-dev libegl1-mesa-dev libopenal-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libasound2-dev libvulkan-dev git cmake
 
-2- **Baixa raylib:** 
+**2- Baixar raylib:** 
 
--sudo apt install libraylib-dev
+- sudo apt install libraylib-dev
 
-3- **comandos para compilação:** 
+**3- Comandos para compilação:** 
 
--gcc main.c -o main -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+- gcc main.c -o main -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+- (ou o seguinte - alternativo para Mac)
+- gcc main.c -o test -lraylib -lm -lpthread -ldl 
 
 - ./main
