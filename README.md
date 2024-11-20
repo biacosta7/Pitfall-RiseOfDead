@@ -28,6 +28,6 @@ Prepare-se para uma corrida intensa pela sobrevivência!
 
 - gcc main.c -o main -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
 - (ou o seguinte - alternativo para Mac)
-- gcc main.c -o test -lraylib -lm -lpthread -ldl 
+- gcc main.c -o main -lraylib -lm -lpthread -ldl 
 
 - ./main
