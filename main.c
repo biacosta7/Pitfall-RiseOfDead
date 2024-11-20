@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <time.h>
+#include <string.h>
 
 #define SCALE_FACTOR 1.6
 #define SCREEN_HEIGHT 450
@@ -59,6 +60,7 @@ typedef struct{
     bool invencivel; //tempo de invencibilidade logo apos levar uma colisao
     float invencibilidadeTimer; // tempo que dura a invencibilidade
     bool isAttacking;
+    bool isDead;
 } Player;
 
 
@@ -137,6 +139,7 @@ typedef struct {
 
 Potion potions[MAX_POTIONS]; // Array para as poções
 int activePotions = 0; 
+
 struct Winners{
     char nome[20];
     int tempo;
@@ -144,35 +147,43 @@ struct Winners{
 };
 struct Winners *head = NULL;
 
-void add_winner(struct Winners **head, char *nome, int tempo){
+void add_winner(struct Winners **head, char *nome, int tempo) {
     struct Winners *n = *head;
     struct Winners *novo = (struct Winners *)malloc(sizeof(struct Winners));
     struct Winners *anterior = NULL;
+
+    if (novo == NULL) {
+        perror("Falha ao alocar memória");
+        exit(1);
+    }
 
     strcpy(novo->nome, nome);
     novo->tempo = tempo;
     novo->next = NULL;
 
-    if(*head == NULL){
+    if (*head == NULL) { // Caso a lista esteja vazia
         *head = novo;
         return;
     }
 
-    if((*head)->tempo > novo->tempo){
+    if ((*head)->tempo > novo->tempo) { // Inserir no início da lista
         novo->next = *head;
         *head = novo;
         return;
     }
-    while(n != NULL && n->tempo <= novo -> tempo){
+
+    // Percorre a lista até encontrar a posição correta
+    while (n != NULL && n->tempo <= novo->tempo) {
         anterior = n;
-        n = n-> next;
+        n = n->next;
     }
-    if(anterior != NULL){
-        anterior -> next = novo;
+
+    if (anterior != NULL) {
+        anterior->next = novo;
     }
-    novo -> next = n;
-    return;
+    novo->next = n;
 }
+
 void winnerList(){
     FILE *list;
     char nome[20];
@@ -183,16 +194,7 @@ void winnerList(){
     }
     fclose(list);
 }
-void printwinnerList(struct Winners *head){
-    struct Winners *n = head;
-    int i = 1;
-    while(n != NULL && i <= 10){
-        printf("%d. %s: %d segundos", i, n->nome, n->tempo);
-        n = n->next;
-        i++;
-    }
-    printf("\n");
-}
+
 void writeWinners(){
     FILE *list;
     list = fopen("winners.txt", "w");
@@ -295,12 +297,10 @@ void DrawPlayer(Player player) {
         case ATTACK:
             texture = player.attackTexture;
             break;
-        case IDLE:
-            texture = player.idleTexture;
-            break;
         case DEAD:
             texture = player.deadTexture;
             break;
+        case IDLE:
         default:
             texture = player.idleTexture;
             break;
@@ -694,8 +694,6 @@ void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colid
         // Check collision only for active hands
         else if (hands[i].isActive) {
            if(player_colide_hand(hands[i], player)){
-                printf("Collision detected! Hand pos: (%d, %d), Player pos: (%d, %d)\n", 
-                    hands[i].x, hands[i].y, player.x, player.y);
                 *colidiuHand = true;
                 break;
             }
@@ -770,6 +768,10 @@ int main(void){
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
     int potionsCollected = 0;
+    static char nome[256]= ""; // Buffer para o texto inserido
+    int letterCount = 0; // Número de caracteres no texto
+    int maxLength = 30; // Limite de caracteres
+
     InitWindow(screenWidth, screenHeight, "Pitfall - Rise Of Dead");
     //InitAudioDevice();
     double startTime = 0.0;
@@ -870,6 +872,7 @@ int main(void){
         .heartTexture3 = LoadTexture("assets/Heart/Heart3.png"),
         .heartTexture2 = LoadTexture("assets/Heart/Heart2.png"),
         .heartTexture1 = LoadTexture("assets/Heart/Heart1.png"),
+        .isDead = false,
     };
     
     // cria enemy
@@ -996,7 +999,7 @@ int main(void){
                 player.isJumping = false;
                 player.isAttacking = false;
 
-                if (player.state != RUNNING) {
+                if (player.state != RUNNING && !player.isDead) {
                     player.state = RUNNING;
                     player.frame = 0; // Reseta o frame ao entrar no estado RUNNING
                     player.maxFrames = 8;
@@ -1015,18 +1018,18 @@ int main(void){
                 player.isJumping = false;
                 player.isAttacking = false;
                 
-                if (player.state != RUNNING) {
+                if (player.state != RUNNING && !player.isDead) {
                     player.state = RUNNING;
                     player.frame = 0;
                     player.maxFrames = 8;
                     player.frameTime = 0.1f;
                 }
-                if(player.y < 176 || player.y > 176){
+                if(player.y < 176 || player.y > 176 && !player.isDead){
                     player.isJumping = true;
                 }
             }
             if (IsKeyDown(KEY_R)) {
-                if (player.state != ATTACK && !player.isJumping) { // Prevent attacking while jumping
+                if (player.state != ATTACK && !player.isJumping && !player.isDead) { // Prevent attacking while jumping
                     player.state = ATTACK;
                     player.frame = 0;
                     player.maxFrames = 5;
@@ -1034,13 +1037,20 @@ int main(void){
                     player.isAttacking = true;
                 }
             }
-            else if (!movingHorizontal && !player.isJumping) {
+            else if (!movingHorizontal && !player.isJumping && !player.isDead) {
                 player.isAttacking = false;
                 if (player.state != IDLE) {
                     player.state = IDLE;
                     player.frame = 0;
                     player.maxFrames = 5;
                     player.frameTime = 0.3f;
+                }
+            } if(player.isDead){
+                if(player.state != DEAD){
+                    player.state = DEAD;
+                    player.frame = 0;
+                    player.maxFrames = 4;
+                    player.frameTime = 0.2f;
                 }
             }
 
@@ -1049,6 +1059,7 @@ int main(void){
             if(player.y > 180){
                 player.lives = 0;
                 isGameOver = true;
+                player.isDead = true;
             }
 
             // limites do player
@@ -1121,7 +1132,6 @@ int main(void){
                 DrawTexture(platform_texture, platforms[i].x, platforms[i].y - whitespace, WHITE);
             }
 
-            
 
             if (player.invencivel) {
                 player.invencibilidadeTimer -= GetFrameTime();
@@ -1153,7 +1163,7 @@ int main(void){
                         }
                         else if(player.lives == 0){
                             isGameOver = true;
-                            player.state = DEAD;
+                            player.isDead = true;
                             //PauseMusicStream(music);
                         }
                     }
@@ -1174,35 +1184,26 @@ int main(void){
                     }
                     else if(player.lives == 0){
                         isGameOver = true;
-                        player.state = DEAD;
+                        player.isDead = true;
                         //PauseMusicStream(music);
                     }
                 } 
-                // if(enemy.state == DEAD && enemy.frame == 4){
-                //     enemy.x = -1000;
-                // }
             }
             DrawLives(player, camera);
             DrawTimer(camera, elapsedTime);
 
-            //printf("player x: %d\n", player.x);
             DrawTexture(finalfloor_texture, 12600, screenHeight - 230, WHITE);
-
-            float delayDuration = 4.0f; 
-
             if (isGameOver){
-                if (deltaTime >= delayDuration) {
-                    EndMode2D();
-                    ClearBackground(BLACK);
-                    const char* text = "Game Over!";
-                    int textWidth = MeasureText(text, 40);
+                EndMode2D();
+                ClearBackground(BLACK);
+                const char* text = "Game Over!";
+                int textWidth = MeasureText(text, 40);
 
-                    DrawText(text, 
-                            (GetScreenWidth() - textWidth) / 2,  // Center X
-                            GetScreenHeight() / 2 - 20,          // Center Y
-                            40, 
-                            RED);
-                }
+                DrawText(text, 
+                        (GetScreenWidth() - textWidth) / 2,  // Center X
+                        GetScreenHeight() / 2 - 20,          // Center Y
+                        40, 
+                        RED);
                 
             }
             if(player.x >= 12410) {
@@ -1222,34 +1223,51 @@ int main(void){
                     RED);
             }
         }
-        else if(gameState == FINAL){
-            EndMode2D();
+        else if (gameState == FINAL) {
+
+            // Mensagem principal
+            const char *message = "Parabéns!\n\nVocê chegou no abrigo e coletou todos\n\nos itens para ajudar os cientistas\n\nà produzir a cura";
+            int textWidth = MeasureText(message, 40);
+
             BeginDrawing();
             ClearBackground(RAYWHITE);
-            DrawTexture(backgroundTitle, 0, 0, WHITE);            
-            char* text;
-            text = "Parabéns!\n\n\n\nVocê chegou no abrigo e coletou todos\n\nos itens para ajudar os cientistas\n\nà produzir a cura";
 
-            int textWidth = MeasureText(text, 40);
-
-            DrawText(text,
-                    (GetScreenWidth() - textWidth) + 80, // X
-                    GetScreenHeight() / 2 - 20, // Y
-                    40,
+            // Desenhar o título e a mensagem final
+            DrawTexture(backgroundTitle, 0, 0, WHITE);
+            DrawText(message,
+                    (GetScreenWidth() - textWidth) + 20, // X
+                    GetScreenHeight() / 2 - 10, // Y
+                    30,
                     GREEN);
 
-            ClearBackground(RAYWHITE);
-            DrawText("Insira seu nome para entrar para a lista de vencedores!", 150, 150, 35, BLACK);
-            while((c = getchar()) != '\n' && i < 19){
-                if(isalnum(c) != 0){
-                    nome_player[i] = c;
-                    i++;
+            // Capturar entrada de texto
+            int ch = GetCharPressed();
+            while (ch > 0) {
+                if (ch >= 32 && ch <= 126 && letterCount < maxLength) { // Caracteres válidos
+                    nome[letterCount] = (char)ch;
+                    letterCount++;
+                    nome[letterCount] = '\0'; // Atualiza o terminador
                 }
+                ch = GetCharPressed(); // Captura o próximo caractere
             }
-            nome_player[i] = '\0';
-            fflush(stdout);
-            add_winner(&head, nome_player, elapsedTime);
+
+            // Apagar com BACKSPACE
+            if (IsKeyPressed(KEY_BACKSPACE) && letterCount > 0) {
+                letterCount--;
+                nome[letterCount] = '\0';
+            }
+            if (IsKeyPressed(KEY_ENTER)) {
+                add_winner(&head, nome, elapsedTime);
+                writeWinners();
+                printf("Nome: %s\n", nome);
+                DrawText("Nome adicionado!", (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 230, 20, DARKGREEN);
+            }
+
+            // Renderizar entrada de nome
+            DrawText("Digite seu nome:", (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 150, 20, GREEN);
+            DrawText(nome, (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 190, 20, GREEN);
         }
+
         EndDrawing();
     }
 
@@ -1271,29 +1289,8 @@ int main(void){
     UnloadTexture(finalfloor_texture);
     //UnloadMusicStream(music);
     //CloseAudioDevice();
-    // fecha a janela
-    CloseWindow();
-    
+   
+    CloseWindow(); // fecha a janela
+    // Estrutura para armazenar os vencedores
     return 0;
 }
-/* if(gamewin == 1) {
-    char nome_player[20];
-    char c;
-    int i = 0, j = 10;
-    loadwinnerlist();
-    p
-        }rintf("Escreva seu nome e    } entre para a Lista de Vencedores: ");
-
-    while ((c = getchar()) != '\n' && i < 19) {
-      if(isalnum(c) != 0) {
-        nome_player[i] = c;
-        i++;
-      }
-    }
-
-    nome_player[i] = '\0';
-    fflush(stdout);
-    printf("%s, tempo de jogo: %d ticks\n\n", nome_player, play_time);
-    add_jogador(&head, nome_player, play_time);
-    
-    play_time = elapsedTime?*/

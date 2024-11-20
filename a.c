@@ -183,6 +183,7 @@ void add_winner(struct Winners **head, char *nome, int tempo) {
     }
     novo->next = n;
 }
+
 void winnerList(){
     FILE *list;
     char nome[20];
@@ -190,6 +191,17 @@ void winnerList(){
     list = fopen("vencedores.txt", "r");
     while(fscanf(list, "%s %d", nome, &tempo) == 2){
         add_winner(&head, nome, tempo);
+    }
+    fclose(list);
+}
+
+void writeWinners(){
+    FILE *list;
+    list = fopen("winners.txt", "w");
+    struct Winners *n = head;
+    while(n != NULL){
+        fprintf(list,"%s %d\n", n->nome, n->tempo);
+        n=n->next;
     }
     fclose(list);
 }
@@ -515,9 +527,10 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
         if(enemy->state != DEAD){
             enemy->state = DEAD;
             enemy->frame = 0;
-            enemy->maxFrames = 4;
+            enemy->maxFrames = 5;
             enemy->frameTime = 0.2f;
         }
+        return;
     }
     bool is_colliding = enemy_colide_player(*enemy, player);
 
@@ -755,7 +768,7 @@ int main(void){
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
     int potionsCollected = 0;
-    char *nome; // Buffer para o texto inserido
+    static char nome[256]= ""; // Buffer para o texto inserido
     int letterCount = 0; // Número de caracteres no texto
     int maxLength = 30; // Limite de caracteres
 
@@ -1175,14 +1188,10 @@ int main(void){
                         //PauseMusicStream(music);
                     }
                 } 
-                // if(enemy.state == DEAD && enemy.frame == 4){
-                //     enemy.x = -1000;
-                // }
             }
             DrawLives(player, camera);
             DrawTimer(camera, elapsedTime);
 
-            //printf("player x: %d\n", player.x);
             DrawTexture(finalfloor_texture, 12600, screenHeight - 230, WHITE);
             if (isGameOver){
                 EndMode2D();
@@ -1247,8 +1256,11 @@ int main(void){
                 letterCount--;
                 nome[letterCount] = '\0';
             }
-            if (IsKeyPressed(KEY_ENTER) && letterCount > 0) {
+            if (IsKeyPressed(KEY_ENTER)) {
                 add_winner(&head, nome, elapsedTime);
+                writeWinners();
+                printf("Nome: %s\n", nome);
+                DrawText("Nome adicionado!", (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 230, 20, DARKGREEN);
             }
 
             // Renderizar entrada de nome
@@ -1277,29 +1289,8 @@ int main(void){
     UnloadTexture(finalfloor_texture);
     //UnloadMusicStream(music);
     //CloseAudioDevice();
-    // fecha a janela
-    CloseWindow();
+   
+    CloseWindow(); // fecha a janela
     // Estrutura para armazenar os vencedores
     return 0;
 }
-
-/* if(gamewin == 1) {
-    char nome_player[20];
-    char c;
-    int i = 0, j = 10;
-    loadwinnerlist();
-    printf("Escreva seu nome e entre para a Lista de Vencedores: ");
-
-    while ((c = getchar()) != '\n' && i < 19) {
-      if(isalnum(c) != 0) {
-        nome_player[i] = c;
-        i++;
-      }
-    }
-
-    nome_player[i] = '\0';
-    fflush(stdout);
-    printf("%s, tempo de jogo: %d ticks\n\n", nome_player, play_time);
-    add_jogador(&head, nome_player, play_time);
-    
-    play_time = elapsedTime?*/
