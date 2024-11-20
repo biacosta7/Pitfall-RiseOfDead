@@ -12,8 +12,8 @@
 #define LAYER_COUNT 2
 #define MAX_LIVES 3
 #define GRAVITY 15.0f
-#define MAX_ENEMIES 1
-#define MAX_ZOMBIE_HANDS 5
+#define MAX_ENEMIES 10
+#define MAX_ZOMBIE_HANDS 15
 #define MAX_POTIONS 3
 #define NUM_POTIONS 3
 
@@ -950,7 +950,6 @@ int main(void){
         else if(gameState == GAMEPLAY){
             PlayMusicStream(music);
             UpdateMusicStream(music);
-            double elapsedTime;
             if (!timeStarted) {
                 startTime = GetTime(); // Garante que o tempo de início é capturado apenas uma vez
                 timeStarted = true;
@@ -1250,7 +1249,7 @@ int main(void){
                 }
                 ch = GetCharPressed(); // Captura o próximo caractere
             }
-
+            int foiAdicionado = 0;
             // Apagar com BACKSPACE
             if (IsKeyPressed(KEY_BACKSPACE) && letterCount > 0) {
                 letterCount--;
@@ -1259,7 +1258,10 @@ int main(void){
             if (IsKeyPressed(KEY_ENTER)) {
                 add_winner(&head, nome, elapsedTime);
                 writeWinners();
-                printf("Nome: %s\n", nome);
+                foiAdicionado = 1;
+            }
+
+            if(foiAdicionado == 1){
                 DrawText("Nome adicionado!", (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 230, 20, DARKGREEN);
             }
 
