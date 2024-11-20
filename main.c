@@ -13,22 +13,16 @@
 #define GRAVITY 15.0f
 #define MAX_ENEMIES 1
 #define MAX_ZOMBIE_HANDS 5
+#define MAX_POTIONS 3
 #define NUM_POTIONS 3
-#define RAYLIB_TEXT_UTF8
 
-
-typedef enum GamePhase {
-    PHASE_ONE,
-    PHASE_TWO,
-    FINAL_PHASE
-} GamePhase;
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK, HURT, DEAD } PersonagemState;
-typedef enum { START_SCREEN, GAMEPLAY } GameState;
+typedef enum { START_SCREEN, GAMEPLAY, FINAL } GameState;
 const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou uma\n\n" 
                                "\tequipe de cientistas e após anos de pesquisa em um projeto\n\n"
                                 "\t\tsecreto, criou uma substância destinada à imortalidade,\n\n"
                                 "\t\tacreditando ser a única esperança para a sobrevivência\n\n"
-                                "\t\t\thumana. Porém, o experimento saiu do controle,\n\n"
+                                "\tsobrevivência humana. Porém, o experimento saiu do controle,\n\n"
                                 "\t\t\t\t\t\ttransformando a maioria da população em zumbis.\n\n "
                                 "\nVocê é um dos poucos que escaparam de uma tentativa de invasão\n\n"
                                 "à essa fortaleza, mas agora, na floresta densa, hordas de zumbis \n\n"
@@ -132,11 +126,16 @@ typedef struct {
 ZombieHand zombie_hands[MAX_ZOMBIE_HANDS];
 
 typedef struct {
-    Rectangle rect;
+    int x;
+    int y;
+    int width;
+    int height;
     Texture2D texture;
     bool active;
 } Potion;
 
+Potion potions[MAX_POTIONS]; // Array para as poções
+int activePotions = 0; 
 // struct Winners{
 //     char nome[20];
 //     int tempo;
@@ -713,10 +712,6 @@ bool player_colide_hand(ZombieHand hand, Player player){
         .height = 10
     };
     
-    // Debug visualization
-    DrawRectangleLines(hand_rec.x, hand_rec.y, hand_rec.width, hand_rec.height, LIME);
-    DrawRectangleLines(player_rec.x, player_rec.y, player_rec.width, player_rec.height, PURPLE);
-    
     return CheckCollisionRecs(hand_rec, player_rec);
 }
 
@@ -740,53 +735,34 @@ void DrawZombieHands(ZombieHand hands[], int count) {
     }
 }
 
-void DrawFinalPhase(int screenWidth, int screenHeight) {
-    DrawRectangle(0, 0, screenWidth, screenHeight, 
-                    ColorAlpha(BLACK, 0.3f));
+bool player_colide_potion(Player player, Potion potion, int screenHeight, int platform_height){
     
-    // Draw UI elements specific to final phase
-    DrawText("FINAL BATTLE", screenWidth/2 - 100, 50, 20, RED);
-    
-    // Draw special indicators or warnings
-    // if (bossHealth < bossMaxHealth * 0.3f) {
-    //     DrawText("BOSS ENRAGED!", screenWidth/2 - 80, 80, 20, RED);
-    // }
-}
+    Rectangle potion_rec = {
+        .width = potion.width,
+        .height = potion.height, 
+        .x = potion.x,  // x position with offset
+        .y = potion.y, // y position with offset
 
-// void UpdateFinalPhase(void) {
-//         // Spawn final boss
-//         // if (!bossSpawned) {
-//         //     SpawnBoss();
-//         //     bossSpawned = true;
-//         // }
-        
-//         // Change background or environment
-//         DrawFinalPhaseBackground();
-        
-//         // Add special effects
-//         // if (bossSpawned) {
-//         //     UpdateBossLogic();
-//         //     DrawBossHealthBar();
-//         // }
-        
-//         // Maybe change music
-//         // if (!finalMusicStarted) {
-//         //     PlayFinalPhaseMusic();
-//         //     finalMusicStarted = true;
-//         // }
-        
-//         // Add special obstacles or challenges
-//         UpdateFinalPhaseObstacles();
-// }
+    };
+
+    Rectangle player_rec = {
+        .x = player.x + (player.width * 2) + 35,
+        .y = player.y + (player.height * 2) + 60,
+        .width = player.width - 15,
+        .height = player.height * 3
+    };
+    
+    return CheckCollisionRecs(potion_rec, player_rec);
+}
 
 
 int main(void){
-    GamePhase currentPhase = PHASE_ONE;
     bool isFinalPhaseTriggered = false;
     bool isGameOver = false;
     // cria window
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
+    int potionsCollected = 0;
     InitWindow(screenWidth, screenHeight, "Pitfall - Rise Of Dead");
     //InitAudioDevice();
     double startTime = 0.0;
@@ -806,16 +782,6 @@ int main(void){
 
     //Music music = LoadMusicStream("assets/sounds/thriller.wav");
     Texture2D zombiehand_texture = LoadTexture( "assets/obstaculos/zombiehand.png" );
-       // Inicializa as poções
-    Potion potions[NUM_POTIONS];
-    srand(time(NULL));
-    for (int i = 0; i < NUM_POTIONS; i++) {
-        potions[i].rect = (Rectangle){rand() % (SCREEN_WIDTH - 50), rand() % (SCREEN_HEIGHT - 50), 40, 40};
-        potions[i].texture = potionTextures[i];
-        potions[i].active = true;
-    }
-    
-    int potionsCollected = 0;
 
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
@@ -921,6 +887,19 @@ int main(void){
 
     EnemySpawner enemies[MAX_ENEMIES];
     InitEnemySpawners(enemies, MAX_ENEMIES, enemy);
+
+    // Inicialização das poções
+    srand(time(NULL));
+    int spawnDistance = 4000;
+    for (int i = 0; i < MAX_POTIONS; i++) {
+        potions[i].width = potions[i].width - 35,
+        potions[i].height = potions[i].height * 2,
+        potions[i].x = (i + 1) * spawnDistance,  // x position with offset
+        potions[i].y = screenHeight - platform_height - potions[i].height - 30, // y position with offset
+        potions[i].texture = potionTextures[i];
+        potions[i].active = true;
+        activePotions++;
+    }
     
     // game loop
     while (!WindowShouldClose()){
@@ -1093,51 +1072,28 @@ int main(void){
                     DrawEnemy(enemies[i].enemy);
                 }
             }
-            
-            // Draw player collision box
-            // Rectangle collision_box = {
-            //     .x = player.x + (player.width * 2),
-            //     .y = player.y + (player.height * 6) - 10,
-            //     .width = player.width,
-            //     .height = 10
-            // };
-            // DrawRectangleRec(collision_box, ColorAlpha(GREEN, 0.5f));
 
-            // In your draw code
-            //DrawRectangleLines(hand_rec.x, hand_rec.y, hand_rec.width, hand_rec.height, RED);
+            // Durante o jogo, verificar a coleta ou desativação
+            for (int i = 0; i < MAX_POTIONS; i++) {
+                if (potions[i].active) {
+                    // Checar colisão ou condição para desativar
+                    if (player_colide_potion(player, potions[i], screenHeight, platform_height)) {
+                        potions[i].active = false;
+                        activePotions--;
+                        potionsCollected++; // Incrementa o contador
 
-
-            // Draw player bounds
-            Rectangle player_bounds = {
-                .x = player.x,
-                .y = player.y,
-                .width = player.width * 3,
-                .height = player.height * 6
-            };
-            DrawRectangleLines(player_bounds.x, player_bounds.y, 
-                            player_bounds.width, player_bounds.height, RED);
-
-            for (int i = 0; i < NUM_POTIONS; i++) {
-                if (potions[i].active && CheckCollisionRecs(player_bounds, potions[i].rect)) {
-                    potions[i].active = false;
-                    potionsCollected++; // Incrementa o contador
-
-
-                    // Reposiciona a poção em um local aleatório
-                    potions[i].rect.x = rand() % (SCREEN_WIDTH - (int)potions[i].rect.width);
-                    potions[i].rect.y = rand() % (SCREEN_HEIGHT - (int)potions[i].rect.height);
-                    potions[i].active = true;
+                        // Reposiciona a poção em um local aleatório
+                        
+                    }
+                    DrawTexture(potions[i].texture, potions[i].x, potions[i].y, WHITE);
                 }
             }
 
-            for (int i = 0; i < NUM_POTIONS; i++) {
-            if (potions[i].active) {
-                DrawTexture(potions[i].texture, potions[i].rect.x, potions[i].rect.y, WHITE);
-                }
-            }
-                // Desenha o contador no canto superior direito
-            DrawTexture(PotionIcon, SCREEN_WIDTH - 100, 20, WHITE);
-            DrawText(TextFormat("%d", potionsCollected), SCREEN_WIDTH - 50, 30, 20, DARKGRAY);
+            // Desenha o contador no canto superior direito
+            int posX = (screenWidth - 60) - camera.offset.x;
+            int posY = 30 - camera.offset.y;
+            DrawTexture(PotionIcon, posX-30, posY, WHITE);
+            DrawText(TextFormat("%d/3", potionsCollected), posX, posY+10, 20, WHITE);
 
             //desenhar floor/pit
             for (int i = 0; i < total_ground_count; i++) {
@@ -1174,12 +1130,10 @@ int main(void){
                             enemies[i].enemy.lives--;
                             enemies[i].enemy.invencivel = true;  // Ativa invencibilidade temporária
                             enemies[i].enemy.invencibilidadeTimer = 0.5f;  // Define um tempo de invencibilidade de 1 segundo
-                            //printf("ENEMY LIVES: %d\n", enemies[i].enemy.lives);
                         }
                         else if(enemies[i].enemy.lives == 0){
                             enemies[i].enemy.isAttacking = false;
                             enemies[i].enemy.isDead = true;
-                            //printf("MORREU ZUMBIZINHO\n");
                         }
                     }
                     if(enemies[i].enemy.isAttacking && !player.invencivel && !player.isAttacking){
@@ -1203,7 +1157,6 @@ int main(void){
 
                 }
                 if(colidiuHand && !player.invencivel){
-                    printf("A MAO PEGOU O PE\n");
                     if (player.lives > 0) {
                         player.lives--;
                         player.invencivel = true;  // Ativa invencibilidade temporária
@@ -1221,14 +1174,6 @@ int main(void){
             DrawLives(player, camera);
             DrawTimer(camera, elapsedTime);
 
-
-            // Based on potions collected and player position
-            if (potionsCollected == 3 && player.x >= worldWidth * 0.9f && !isFinalPhaseTriggered) {
-                currentPhase = FINAL_PHASE;
-                isFinalPhaseTriggered = true;
-                // Initialize final phase elements
-            }
-
             //printf("player x: %d\n", player.x);
             DrawTexture(finalfloor_texture, 12550, screenHeight - 230, WHITE);
 
@@ -1244,12 +1189,43 @@ int main(void){
                         40, 
                         RED);
             }
-
-
+            if(player.x >= 12410) {
+                char *text;
+                
+                if(potionsCollected == 3) {
+                    gameState = FINAL;
+                } else {
+                    text = "Você não coletou todos os itens necessários\n\n para ajudar os cientistas à produzir a cura";
+                }
+                int textWidth = MeasureText(text, 40);
+                // Draw text at the top of the screen
+                DrawText(text,
+                    (12530 - textWidth),  // X
+                    screenHeight / 2 - 20, // Y
+                    40,
+                    RED);
+            }
         }
-        EndDrawing();
-        
+        else if(gameState == FINAL){
+            EndMode2D();
+            BeginDrawing();
+            ClearBackground(RAYWHITE);
+            DrawTexture(backgroundTitle, 0, 0, WHITE);            
+            char* text;
+            text = "Parabéns!\n\n\n\nVocê chegou no abrigo e coletou todos\n\nos itens para ajudar os cientistas\n\nà produzir a cura";
+
+            int textWidth = MeasureText(text, 40);
+
+            DrawText(text,
+                    (GetScreenWidth() - textWidth) + 190, // X
+                    GetScreenHeight() / 2 - 20, // Y
+                    40,
+                    GREEN);
+            
+        }
+        EndDrawing();   
     }
+
     // unload texturas
     UnloadTexture(player.idleTexture);
     UnloadTexture(player.runTexture);
