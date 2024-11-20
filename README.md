@@ -16,11 +16,15 @@ Prepare-se para uma corrida intensa pela sobrevivência!
 
 1-**Baixar dependências**
 -sudo apt update
+
 -sudo apt install build-essential libgl1-mesa-dev libegl1-mesa-dev libopenal-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libasound2-dev libvulkan-dev git cmake
 
 -2- **Baixa raylib:** 
+
 -sudo apt install libraylib-dev
 
 3- **comandos para compilação:** 
+
 -gcc main.c -o main -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+
 - ./main
