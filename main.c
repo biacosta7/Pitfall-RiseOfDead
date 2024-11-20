@@ -790,7 +790,7 @@ int main(void){
 
     Texture2D PotionIcon = LoadTexture("assets/potions/potion-gold-solo.png");
 
-    //Music music = LoadMusicStream("assets/sounds/thriller.wav");
+    Music music = LoadMusicStream("assets/sounds/thriller.wav");
     Texture2D zombiehand_texture = LoadTexture( "assets/obstaculos/zombiehand.png" );
 
     SetTargetFPS(60);
@@ -948,8 +948,8 @@ int main(void){
             DrawText("Pressione ENTER para iniciar a corrida!", 390, 540, 25, DARKGREEN);
         }
         else if(gameState == GAMEPLAY){
-            //PlayMusicStream(music);
-            //UpdateMusicStream(music);
+            PlayMusicStream(music);
+            UpdateMusicStream(music);
             double elapsedTime;
             if (!timeStarted) {
                 startTime = GetTime(); // Garante que o tempo de início é capturado apenas uma vez
@@ -1164,7 +1164,7 @@ int main(void){
                         else if(player.lives == 0){
                             isGameOver = true;
                             player.isDead = true;
-                            //PauseMusicStream(music);
+                            PauseMusicStream(music);
                         }
                     }
 
@@ -1185,7 +1185,7 @@ int main(void){
                     else if(player.lives == 0){
                         isGameOver = true;
                         player.isDead = true;
-                        //PauseMusicStream(music);
+                        PauseMusicStream(music);
                     }
                 } 
             }
@@ -1287,8 +1287,8 @@ int main(void){
     UnloadTexture(background2_texture);
     UnloadTexture(PotionIcon);
     UnloadTexture(finalfloor_texture);
-    //UnloadMusicStream(music);
-    //CloseAudioDevice();
+    UnloadMusicStream(music);
+    CloseAudioDevice();
    
     CloseWindow(); // fecha a janela
     // Estrutura para armazenar os vencedores
