@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdbool.h>
 #include <time.h>
+#include <string.h>
 
 #define SCALE_FACTOR 1.6
 #define SCREEN_HEIGHT 450
@@ -11,19 +12,13 @@
 #define LAYER_COUNT 2
 #define MAX_LIVES 3
 #define GRAVITY 15.0f
-#define MAX_ENEMIES 5
-#define MAX_ZOMBIE_HANDS 20
+#define MAX_ENEMIES 1
+#define MAX_ZOMBIE_HANDS 5
+#define MAX_POTIONS 3
 #define NUM_POTIONS 3
-#define RAYLIB_TEXT_UTF8
 
-
-typedef enum GamePhase {
-    PHASE_ONE,
-    PHASE_TWO,
-    FINAL_PHASE
-} GamePhase;
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK, HURT, DEAD } PersonagemState;
-typedef enum { START_SCREEN, GAMEPLAY, INSTRUCTIONS } GameState;
+typedef enum { START_SCREEN, GAMEPLAY, FINAL } GameState;
 const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou uma\n\n" 
                                "\tequipe de cientistas e após anos de pesquisa em um projeto\n\n"
                                 "\t\tsecreto, criou uma substância destinada à imortalidade,\n\n"
@@ -37,15 +32,7 @@ const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite
                                 "\t\tSua meta é chegar a um abrigo subterrâneo, onde os últimos\n\n"
                                 "\t\t\t\t\t\t\t\t\t\t\tcientistas tentam criar uma vacina.\n\n";
 const char *tituloDoJogo = "Pitfall: Rise of Dead";
-const char *tituloInstrucoes = "\t\t\t\tInstruções";
-const char *instrucoes = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tTeclas de movimento: \n\n\n"
-                        "\t\t\t\t\t\t\t\t\t\t\t\t[A] para mover para a esquerda\n\n"
-                        "\t\t\t\t\t\t\t\t\t\t\t\t\t[D] para mover para a direita\n\n"
-                        "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t[W] para saltar\n\n"
-                        "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t[R] para atacar\n\n\n"
-                        "\t\t\t\t\tSeu objetivo é coletar todas as poções necessárias e\n\n"
-                        "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\tchegar ao abrigo vivo!\n\n\n"
-                        "\t\t\t\t\t\t\t\t\tDerrote os zumbis e salve a humanidade!\n\n";
+
 // struct player
 typedef struct{
     int x;
@@ -57,6 +44,7 @@ typedef struct{
     bool canJump;
     PersonagemState state;
     Texture2D idleTexture;
+    Texture2D deadTexture;
     Texture2D runTexture;
     Texture2D jumpTexture;
     Texture2D attackTexture;
@@ -72,6 +60,7 @@ typedef struct{
     bool invencivel; //tempo de invencibilidade logo apos levar uma colisao
     float invencibilidadeTimer; // tempo que dura a invencibilidade
     bool isAttacking;
+    bool isDead;
 } Player;
 
 
@@ -140,76 +129,82 @@ typedef struct {
 ZombieHand zombie_hands[MAX_ZOMBIE_HANDS];
 
 typedef struct {
-    Rectangle rect;
+    int x;
+    int y;
+    int width;
+    int height;
     Texture2D texture;
     bool active;
 } Potion;
 
-// struct Winners{
-//     char nome[20];
-//     int tempo;
-//     struct Winners *next;
-// };
-// struct Winners *head = NULL;
-// void add_winner(struct Winners **head, char *nome, int tempo){
-//     struct Winners *n = *head;
-//     struct Winners *novo = (struct Winners *)malloc(sizeof(struct Winners));
-//     struct Winners *anterior = NULL;
+Potion potions[MAX_POTIONS]; // Array para as poções
+int activePotions = 0; 
 
-//     strcpy(novo->nome, nome);
-//     novo->tempo = tempo;
-//     novo->next = NULL;
+struct Winners{
+    char nome[20];
+    int tempo;
+    struct Winners *next;
+};
+struct Winners *head = NULL;
 
-//     if(*head == NULL){
-//         *head = novo;
-//         return;
-//     }
+void add_winner(struct Winners **head, char *nome, int tempo) {
+    struct Winners *n = *head;
+    struct Winners *novo = (struct Winners *)malloc(sizeof(struct Winners));
+    struct Winners *anterior = NULL;
 
-//     if((*head)->tempo > novo->tempo){
-//         novo->next = *head;
-//         *head = novo;
-//         return;
-//     }
-//     while(n != NULL && n->tempo <= novo -> tempo){
-//         anterior = n;
-//         n = n-> next;
-//     }
-//     if(anterior != NULL){
-//         anterior -> next = novo;
-//     }
-//     novo -> next = n;
-//     return;
-// }
-// void winnerList(){
-//     FILE *list;
-//     char nome[20];
-//     int tempo;
-//     list = fopen("vencedores.txt", "r");
-//     while(fscanf(list, "%s %d", nome, &tempo) == 2){
-//         add_winner(&head, nome, tempo);
-//     }
-//     fclose(list);
-// }
-// void printwinnerList(struct Winners *head){
-//     struct Winners *n = *head;
-//     int i = 1;
-//     while(n != NULL && i <= 10){
-//         printf("%d. %s: %d segundos", i, n->nome, n->tempo);
-//         n = n->next;
-//         i++;
-//     }
-//     printf("\n");
-// }
-// void writeWinners(){
-//     FILE *list;
-//     list = fopen("winners.txt", "w");
-//     struct Winners *n = head;
-//     while(n != NULL){
-//         fprintf(list,"%s %d\n", n->nome, n->tempo);
-//         n=n->next;
-//     }
-//     fclose(list);
-// }
+    if (novo == NULL) {
+        perror("Falha ao alocar memória");
+        exit(1);
+    }
+
+    strcpy(novo->nome, nome);
+    novo->tempo = tempo;
+    novo->next = NULL;
+
+    if (*head == NULL) { // Caso a lista esteja vazia
+        *head = novo;
+        return;
+    }
+
+    if ((*head)->tempo > novo->tempo) { // Inserir no início da lista
+        novo->next = *head;
+        *head = novo;
+        return;
+    }
+
+    // Percorre a lista até encontrar a posição correta
+    while (n != NULL && n->tempo <= novo->tempo) {
+        anterior = n;
+        n = n->next;
+    }
+
+    if (anterior != NULL) {
+        anterior->next = novo;
+    }
+    novo->next = n;
+}
+
+void winnerList(){
+    FILE *list;
+    char nome[20];
+    int tempo;
+    list = fopen("vencedores.txt", "r");
+    while(fscanf(list, "%s %d", nome, &tempo) == 2){
+        add_winner(&head, nome, tempo);
+    }
+    fclose(list);
+}
+
+void writeWinners(){
+    FILE *list;
+    list = fopen("winners.txt", "w");
+    struct Winners *n = head;
+    while(n != NULL){
+        fprintf(list,"%s %d\n", n->nome, n->tempo);
+        n=n->next;
+    }
+    fclose(list);
+}
 
 void aplica_gravidade_player(Player *player, Platform platforms[], int total_ground_count, float deltaTime);
 void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_ground_count, float deltaTime);
@@ -301,6 +296,9 @@ void DrawPlayer(Player player) {
             break;
         case ATTACK:
             texture = player.attackTexture;
+            break;
+        case DEAD:
+            texture = player.deadTexture;
             break;
         case IDLE:
         default:
@@ -437,7 +435,7 @@ void InitEnemySpawners(EnemySpawner enemies[], int count, Enemy baseEnemy) {
     }
 }
 
-int player_no_pit(Player player, Platform platforms[], int total_ground_count) {
+int player_na_plataforma(Player player, Platform platforms[], int total_ground_count) {
     Rectangle player_rec = {
         .x = player.x + (player.width * 2),
         .y = player.y + (player.height * 6) - 10,
@@ -462,7 +460,8 @@ int player_no_pit(Player player, Platform platforms[], int total_ground_count) {
     return -1;
 }
 
-int enemy_no_pit(Enemy enemy, Platform platforms[], int total_ground_count) {
+
+int enemy_na_plataforma(Enemy enemy, Platform platforms[], int total_ground_count) {
     Rectangle enemy_rec = {
         .x = enemy.x + (enemy.width * 2),
         .y = enemy.y + (enemy.height * 6) - 10,
@@ -605,9 +604,9 @@ void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *p
 }
 
 void aplica_gravidade_player(Player *player, Platform platforms[], int total_ground_count, float deltaTime) {
+
     const float MAX_FALL_SPEED = 10.0f;
-    
-    int current_platform = player_no_pit(*player, platforms, total_ground_count);
+    int current_platform = player_na_plataforma(*player, platforms, total_ground_count);
     bool on_floor = (current_platform != -1); // Player is over a FLOOR type pit
     
     // Apply gravity if not on floor, regardless of jump state
@@ -624,7 +623,7 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_gro
     player->y += player->velocityY * deltaTime * 60.0f;
     
     // Check floor collision again after movement
-    current_platform = player_no_pit(*player, platforms, total_ground_count);
+    current_platform = player_na_plataforma(*player, platforms, total_ground_count);
 
     if (current_platform != -1) {
         // If colliding with floor
@@ -633,7 +632,7 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_gro
             player->y = platforms[current_platform].y - (player->height * 6);
             player->velocityY = 0.0;
             player->canJump = true;    
-        }
+        }   
     } else {
         if (player->velocityY != 0) {
             player->canJump = false;
@@ -656,7 +655,7 @@ void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_ground
     enemy->y += enemy->velocityY * deltaTime * 60.0f;
     
     // Check pit collision
-    int current_platform_enemy = enemy_no_pit(*enemy, platforms, total_ground_count);
+    int current_platform_enemy = enemy_na_plataforma(*enemy, platforms, total_ground_count);
 
     if (current_platform_enemy != -1) {
         // If colliding with pit
@@ -683,7 +682,8 @@ void InitZombieHands(ZombieHand hands[], int count, int screenWidth, int screenH
 }
 
 void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colidiuHand) {
-    float spawnTriggerDistance = 300.0f;
+    float spawnTriggerDistance = 150.0f;
+    *colidiuHand = false;  // Reset at start of update
     
     for(int i = 0; i < count; i++) {
         if (!hands[i].isActive) {
@@ -693,31 +693,30 @@ void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colid
         }
         // Check collision only for active hands
         else if (hands[i].isActive) {
-            if(player_colide_hand(hands[i], player)){
-                //printf("COLIDIU\n");
+           if(player_colide_hand(hands[i], player)){
                 *colidiuHand = true;
-            } else{
-                *colidiuHand = false;
+                break;
             }
+
         }
     }
 }
 
 bool player_colide_hand(ZombieHand hand, Player player){
     Rectangle hand_rec = {
-        .x = hand.x,
+        .x = hand.x + 22,
         .y = hand.y,
-        .width = hand.width * 6,  // Match the actual drawn size
-        .height = hand.height * 6  // Match the actual drawn size
+        .width = hand.width - 35,
+        .height = hand.height * 2 
     };
 
     Rectangle player_rec = {
-        .x = player.x,
-        .y = player.y,
-        .width = player.width * 6,  // Match the actual drawn size
-        .height = player.height * 6  // Match the actual drawn size
+        .x = player.x + (player.width * 2) + 35,
+        .y = player.y + (player.height * 6) - 10,
+        .width = player.width - 15,
+        .height = 10
     };
-
+    
     return CheckCollisionRecs(hand_rec, player_rec);
 }
 
@@ -741,61 +740,42 @@ void DrawZombieHands(ZombieHand hands[], int count) {
     }
 }
 
-// void DrawFinalPhase(int screenWidth, int screenHeight) {
-//     DrawRectangle(0, 0, screenWidth, screenHeight, 
-//                     ColorAlpha(BLACK, 0.3f));
+bool player_colide_potion(Player player, Potion potion, int screenHeight, int platform_height){
     
-//     // Draw final boss
-//     // if (bossSpawned) {
-//     //     DrawBoss();
-//     // }
-    
-//     // Draw UI elements specific to final phase
-//     DrawText("FINAL BATTLE", screenWidth/2 - 100, 50, 20, RED);
-    
-//     // Draw special indicators or warnings
-//     // if (bossHealth < bossMaxHealth * 0.3f) {
-//     //     DrawText("BOSS ENRAGED!", screenWidth/2 - 80, 80, 20, RED);
-//     // }
-// }
+    Rectangle potion_rec = {
+        .width = potion.width,
+        .height = potion.height, 
+        .x = potion.x,  // x position with offset
+        .y = potion.y, // y position with offset
 
-// void UpdateFinalPhase(void) {
-//         // Spawn final boss
-//         // if (!bossSpawned) {
-//         //     SpawnBoss();
-//         //     bossSpawned = true;
-//         // }
-        
-//         // Change background or environment
-//         DrawFinalPhaseBackground();
-        
-//         // Add special effects
-//         // if (bossSpawned) {
-//         //     UpdateBossLogic();
-//         //     DrawBossHealthBar();
-//         // }
-        
-//         // Maybe change music
-//         // if (!finalMusicStarted) {
-//         //     PlayFinalPhaseMusic();
-//         //     finalMusicStarted = true;
-//         // }
-        
-//         // Add special obstacles or challenges
-//         UpdateFinalPhaseObstacles();
-// }
+    };
+
+    Rectangle player_rec = {
+        .x = player.x + (player.width * 2) + 35,
+        .y = player.y + (player.height * 2) + 60,
+        .width = player.width - 15,
+        .height = player.height * 3
+    };
+    
+    return CheckCollisionRecs(potion_rec, player_rec);
+}
 
 
 int main(void){
-    GamePhase currentPhase = PHASE_ONE;
     bool isFinalPhaseTriggered = false;
     bool isGameOver = false;
     // cria window
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
+    int potionsCollected = 0;
+    static char nome[256]= ""; // Buffer para o texto inserido
+    int letterCount = 0; // Número de caracteres no texto
+    int maxLength = 30; // Limite de caracteres
+
     InitWindow(screenWidth, screenHeight, "Pitfall - Rise Of Dead");
-    InitAudioDevice();
+    //InitAudioDevice();
     double startTime = 0.0;
+    double elapsedTime = 0;
     bool timeStarted = false;
     Texture2D backgroundTitle = LoadTexture("assets/map/layers/initial-bg.png");
     Texture2D floor_texture = LoadTexture("assets/map/floor.png");
@@ -810,20 +790,8 @@ int main(void){
 
     Texture2D PotionIcon = LoadTexture("assets/potions/potion-gold-solo.png");
 
-    Music music = LoadMusicStream("assets/sounds/thriller.wav");
-    Sound sound = LoadSound("assets/sounds/Hit_sound.wav");
-    SetSoundVolume(sound, 1);
+    //Music music = LoadMusicStream("assets/sounds/thriller.wav");
     Texture2D zombiehand_texture = LoadTexture( "assets/obstaculos/zombiehand.png" );
-       // Inicializa as poções
-    Potion potions[NUM_POTIONS];
-    srand(time(NULL));
-    for (int i = 0; i < NUM_POTIONS; i++) {
-        potions[i].rect = (Rectangle){rand() % (SCREEN_WIDTH - 50), rand() % (SCREEN_HEIGHT - 50), 40, 40};
-        potions[i].texture = potionTextures[i];
-        potions[i].active = true;
-    }
-    
-    int potionsCollected = 0;
 
     SetTargetFPS(60);
     GameState gameState = START_SCREEN;
@@ -890,6 +858,7 @@ int main(void){
         .isJumping = false,
         .canJump = true,
         .idleTexture = LoadTexture("assets/player/idle2.png"),
+        .deadTexture = LoadTexture("assets/player/Dead.png"),
         .runTexture = LoadTexture("assets/player/run.png"),
         .jumpTexture = LoadTexture("assets/player/jump.png"),
         .attackTexture = LoadTexture("assets/player/attack.png"),
@@ -903,6 +872,7 @@ int main(void){
         .heartTexture3 = LoadTexture("assets/Heart/Heart3.png"),
         .heartTexture2 = LoadTexture("assets/Heart/Heart2.png"),
         .heartTexture1 = LoadTexture("assets/Heart/Heart1.png"),
+        .isDead = false,
     };
     
     // cria enemy
@@ -929,6 +899,19 @@ int main(void){
 
     EnemySpawner enemies[MAX_ENEMIES];
     InitEnemySpawners(enemies, MAX_ENEMIES, enemy);
+
+    // Inicialização das poções
+    srand(time(NULL));
+    int spawnDistance = 4000;
+    for (int i = 0; i < MAX_POTIONS; i++) {
+        potions[i].width = potions[i].width - 35,
+        potions[i].height = potions[i].height * 2,
+        potions[i].x = (i + 1) * spawnDistance,  // x position with offset
+        potions[i].y = screenHeight - platform_height - potions[i].height - 30, // y position with offset
+        potions[i].texture = potionTextures[i];
+        potions[i].active = true;
+        activePotions++;
+    }
     
     // game loop
     while (!WindowShouldClose()){
@@ -948,9 +931,6 @@ int main(void){
                 timeStarted = true;
                 isGameOver = false;
             }
-            else if(IsKeyPressed(KEY_I)){
-                gameState = INSTRUCTIONS;
-            }
             int posXtitulo = 420;
             int postYtitulo = 40;
             int posXhistoria = 155;
@@ -964,19 +944,12 @@ int main(void){
             DrawBackground(backgroundTitle, screenWidth, screenHeight, camera);
             
             DrawText(tituloDoJogo, 480, 40, 30, GREEN); //posicao X, posicao Y, tamanho fonte, cor
-            DrawText(historiaDoJogo, 300, 100, 20, LIGHTGRAY);
-            DrawText("Pressione I para visualizar as instruções do jogo", 340, 500, 25, DARKGREEN);
-            DrawText("Pressione ENTER para iniciar a corrida!", 390, 550, 25, DARKGREEN);
-        }
-        else if(gameState == INSTRUCTIONS){
-            DrawBackground(backgroundTitle, screenWidth, screenHeight, camera);
-            DrawText(tituloInstrucoes, 480, 40, 30, GREEN);
-            DrawText(instrucoes, 300, 150, 20, LIGHTGRAY);
-            DrawText("Pressione ENTER para iniciar a corrida!", 390, 500, 25, DARKGREEN);
+            DrawText(historiaDoJogo, 300, 150, 20, LIGHTGRAY);
+            DrawText("Pressione ENTER para iniciar a corrida!", 390, 540, 25, DARKGREEN);
         }
         else if(gameState == GAMEPLAY){
-            PlayMusicStream(music);
-            UpdateMusicStream(music);
+            //PlayMusicStream(music);
+            //UpdateMusicStream(music);
             double elapsedTime;
             if (!timeStarted) {
                 startTime = GetTime(); // Garante que o tempo de início é capturado apenas uma vez
@@ -1026,7 +999,7 @@ int main(void){
                 player.isJumping = false;
                 player.isAttacking = false;
 
-                if (player.state != RUNNING) {
+                if (player.state != RUNNING && !player.isDead) {
                     player.state = RUNNING;
                     player.frame = 0; // Reseta o frame ao entrar no estado RUNNING
                     player.maxFrames = 8;
@@ -1045,18 +1018,18 @@ int main(void){
                 player.isJumping = false;
                 player.isAttacking = false;
                 
-                if (player.state != RUNNING) {
+                if (player.state != RUNNING && !player.isDead) {
                     player.state = RUNNING;
                     player.frame = 0;
                     player.maxFrames = 8;
                     player.frameTime = 0.1f;
                 }
-                if(player.y < 176 || player.y > 176){
+                if(player.y < 176 || player.y > 176 && !player.isDead){
                     player.isJumping = true;
                 }
             }
             if (IsKeyDown(KEY_R)) {
-                if (player.state != ATTACK && !player.isJumping) { // Prevent attacking while jumping
+                if (player.state != ATTACK && !player.isJumping && !player.isDead) { // Prevent attacking while jumping
                     player.state = ATTACK;
                     player.frame = 0;
                     player.maxFrames = 5;
@@ -1064,13 +1037,20 @@ int main(void){
                     player.isAttacking = true;
                 }
             }
-            else if (!movingHorizontal && !player.isJumping) {
+            else if (!movingHorizontal && !player.isJumping && !player.isDead) {
                 player.isAttacking = false;
                 if (player.state != IDLE) {
                     player.state = IDLE;
                     player.frame = 0;
                     player.maxFrames = 5;
                     player.frameTime = 0.3f;
+                }
+            } if(player.isDead){
+                if(player.state != DEAD){
+                    player.state = DEAD;
+                    player.frame = 0;
+                    player.maxFrames = 4;
+                    player.frameTime = 0.2f;
                 }
             }
 
@@ -1079,13 +1059,14 @@ int main(void){
             if(player.y > 180){
                 player.lives = 0;
                 isGameOver = true;
+                player.isDead = true;
             }
 
             // limites do player
             if (player.x < 0) {
                 player.x = 0;  // Stop at left edge
-            } else if (player.x > (worldWidth - (player.width * 6))) {  // Accounting for player bounds
-                player.x = (worldWidth - (player.width * 6));  // Stop at right edge
+            } else if (player.x > (worldWidth - (player.width * 3))) {  // Accounting for player bounds
+                player.x = (worldWidth - (player.width * 3));  // Stop at right edge
             }
 
             UpdatePlayerAnimation(&player, deltaTime);
@@ -1111,51 +1092,28 @@ int main(void){
                     DrawEnemy(enemies[i].enemy);
                 }
             }
-            
-            // Draw player collision box
-            Rectangle collision_box = {
-                .x = player.x + (player.width * 2),
-                .y = player.y + (player.height * 6) - 10,
-                .width = player.width,
-                .height = 10
-            };
-            DrawRectangleRec(collision_box, ColorAlpha(GREEN, 0.5f));
 
-            // In your draw code
-            //DrawRectangleLines(hand_rec.x, hand_rec.y, hand_rec.width, hand_rec.height, RED);
+            // Durante o jogo, verificar a coleta ou desativação
+            for (int i = 0; i < MAX_POTIONS; i++) {
+                if (potions[i].active) {
+                    // Checar colisão ou condição para desativar
+                    if (player_colide_potion(player, potions[i], screenHeight, platform_height)) {
+                        potions[i].active = false;
+                        activePotions--;
+                        potionsCollected++; // Incrementa o contador
 
-
-            // Draw player bounds
-            Rectangle player_bounds = {
-                .x = player.x,
-                .y = player.y,
-                .width = player.width * 6,
-                .height = player.height * 6
-            };
-            DrawRectangleLines(player_bounds.x, player_bounds.y, 
-                            player_bounds.width, player_bounds.height, RED);
-
-            for (int i = 0; i < NUM_POTIONS; i++) {
-                if (potions[i].active && CheckCollisionRecs(player_bounds, potions[i].rect)) {
-                    potions[i].active = false;
-                    potionsCollected++; // Incrementa o contador
-
-
-                    // Reposiciona a poção em um local aleatório
-                    potions[i].rect.x = rand() % (SCREEN_WIDTH - (int)potions[i].rect.width);
-                    potions[i].rect.y = rand() % (SCREEN_HEIGHT - (int)potions[i].rect.height);
-                    potions[i].active = true;
+                        // Reposiciona a poção em um local aleatório
+                        
+                    }
+                    DrawTexture(potions[i].texture, potions[i].x, potions[i].y, WHITE);
                 }
             }
 
-            for (int i = 0; i < NUM_POTIONS; i++) {
-            if (potions[i].active) {
-                DrawTexture(potions[i].texture, potions[i].rect.x, potions[i].rect.y, WHITE);
-                }
-            }
-                // Desenha o contador no canto superior direito
-            DrawTexture(PotionIcon, SCREEN_WIDTH - 100, 20, WHITE);
-            DrawText(TextFormat("%d", potionsCollected), SCREEN_WIDTH - 50, 30, 20, DARKGRAY);
+            // Desenha o contador no canto superior direito
+            int posX = (screenWidth - 60) - camera.offset.x;
+            int posY = 30 - camera.offset.y;
+            DrawTexture(PotionIcon, posX-30, posY, WHITE);
+            DrawText(TextFormat("%d/3", potionsCollected), posX, posY+10, 20, WHITE);
 
             //desenhar floor/pit
             for (int i = 0; i < total_ground_count; i++) {
@@ -1163,6 +1121,8 @@ int main(void){
                 
                 // Alterna entre as texturas conforme o tipo da platform
                 if (platforms[i].type == FLOOR) {
+                    // draw hand
+                    DrawZombieHands(zombie_hands, MAX_ZOMBIE_HANDS);
                     platform_texture = floor_texture;  // Usa `floor_texture` para FLOOR
                 } else {
                     platform_texture = pit2_texture;  // Usa `pit2_texture` para PIT
@@ -1172,8 +1132,6 @@ int main(void){
                 DrawTexture(platform_texture, platforms[i].x, platforms[i].y - whitespace, WHITE);
             }
 
-            // draw hand
-            DrawZombieHands(zombie_hands, MAX_ZOMBIE_HANDS);
 
             if (player.invencivel) {
                 player.invencibilidadeTimer -= GetFrameTime();
@@ -1191,28 +1149,22 @@ int main(void){
                             enemies[i].enemy.lives--;
                             enemies[i].enemy.invencivel = true;  // Ativa invencibilidade temporária
                             enemies[i].enemy.invencibilidadeTimer = 0.5f;  // Define um tempo de invencibilidade de 1 segundo
-                            //printf("ENEMY LIVES: %d\n", enemies[i].enemy.lives);
                         }
                         else if(enemies[i].enemy.lives == 0){
                             enemies[i].enemy.isAttacking = false;
                             enemies[i].enemy.isDead = true;
-                            //printf("MORREU ZUMBIZINHO\n");
                         }
                     }
                     if(enemies[i].enemy.isAttacking && !player.invencivel && !player.isAttacking){
                         if (player.lives > 0) {
-                            PauseMusicStream(music);
-                            PlaySound(sound);
-                            ResumeMusicStream(music);
                             player.lives--;
                             player.invencivel = true;  // Ativa invencibilidade temporária
                             player.invencibilidadeTimer = 1.0f;  // Define um tempo de invencibilidade de 1 segundo
                         }
                         else if(player.lives == 0){
-                           PauseMusicStream(music);
-                            //PlayMusicStream(death);
-                            //UpdateMusicStream(death);
                             isGameOver = true;
+                            player.isDead = true;
+                            //PauseMusicStream(music);
                         }
                     }
 
@@ -1224,8 +1176,7 @@ int main(void){
                     }
 
                 }
-                if(colidiuHand  && !player.invencivel){
-                    printf("A MAO PEGOU O PE\n");
+                if(colidiuHand && !player.invencivel){
                     if (player.lives > 0) {
                         player.lives--;
                         player.invencivel = true;  // Ativa invencibilidade temporária
@@ -1233,27 +1184,15 @@ int main(void){
                     }
                     else if(player.lives == 0){
                         isGameOver = true;
-                        PauseMusicStream(music);
+                        player.isDead = true;
+                        //PauseMusicStream(music);
                     }
                 } 
-                // if(enemy.state == DEAD && enemy.frame == 4){
-                //     enemy.x = -1000;
-                // }
             }
             DrawLives(player, camera);
             DrawTimer(camera, elapsedTime);
 
-
-            // Based on potions collected and player position
-            if (potionsCollected == 3 && player.x >= worldWidth * 0.9f && !isFinalPhaseTriggered) {
-                currentPhase = FINAL_PHASE;
-                isFinalPhaseTriggered = true;
-                // Initialize final phase elements
-            }
-
-            printf("player x: %d\n", player.x);
-            DrawTexture(finalfloor_texture, 12550, screenHeight - platform_height + whitespace, WHITE);
-
+            DrawTexture(finalfloor_texture, 12600, screenHeight - 230, WHITE);
             if (isGameOver){
                 EndMode2D();
                 ClearBackground(BLACK);
@@ -1265,16 +1204,76 @@ int main(void){
                         GetScreenHeight() / 2 - 20,          // Center Y
                         40, 
                         RED);
+                
+            }
+            if(player.x >= 12410) {
+                char *text;
+                
+                if(potionsCollected == 3) {
+                    gameState = FINAL;
+                } else {
+                    text = "Você não coletou todos os itens necessários\n\n para ajudar os cientistas à produzir a cura";
+                }
+                int textWidth = MeasureText(text, 40);
+                // Draw text at the top of the screen
+                DrawText(text,
+                    (12530 - textWidth),  // X
+                    screenHeight / 2 - 20, // Y
+                    40,
+                    RED);
+            }
+        }
+        else if (gameState == FINAL) {
+
+            // Mensagem principal
+            const char *message = "Parabéns!\n\nVocê chegou no abrigo e coletou todos\n\nos itens para ajudar os cientistas\n\nà produzir a cura";
+            int textWidth = MeasureText(message, 40);
+
+            BeginDrawing();
+            ClearBackground(RAYWHITE);
+
+            // Desenhar o título e a mensagem final
+            DrawTexture(backgroundTitle, 0, 0, WHITE);
+            DrawText(message,
+                    (GetScreenWidth() - textWidth) + 20, // X
+                    GetScreenHeight() / 2 - 10, // Y
+                    30,
+                    GREEN);
+
+            // Capturar entrada de texto
+            int ch = GetCharPressed();
+            while (ch > 0) {
+                if (ch >= 32 && ch <= 126 && letterCount < maxLength) { // Caracteres válidos
+                    nome[letterCount] = (char)ch;
+                    letterCount++;
+                    nome[letterCount] = '\0'; // Atualiza o terminador
+                }
+                ch = GetCharPressed(); // Captura o próximo caractere
             }
 
+            // Apagar com BACKSPACE
+            if (IsKeyPressed(KEY_BACKSPACE) && letterCount > 0) {
+                letterCount--;
+                nome[letterCount] = '\0';
+            }
+            if (IsKeyPressed(KEY_ENTER)) {
+                add_winner(&head, nome, elapsedTime);
+                writeWinners();
+                printf("Nome: %s\n", nome);
+                DrawText("Nome adicionado!", (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 230, 20, DARKGREEN);
+            }
 
+            // Renderizar entrada de nome
+            DrawText("Digite seu nome:", (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 150, 20, GREEN);
+            DrawText(nome, (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 190, 20, GREEN);
         }
+
         EndDrawing();
-        
     }
+
     // unload texturas
-    UnloadSound(sound);
     UnloadTexture(player.idleTexture);
+    UnloadTexture(player.deadTexture);
     UnloadTexture(player.runTexture);
     UnloadTexture(player.jumpTexture);
     UnloadTexture(player.attackTexture);
@@ -1288,30 +1287,10 @@ int main(void){
     UnloadTexture(background2_texture);
     UnloadTexture(PotionIcon);
     UnloadTexture(finalfloor_texture);
-    UnloadMusicStream(music);
-    CloseAudioDevice();
-    // fecha a janela
-    CloseWindow();
-    
+    //UnloadMusicStream(music);
+    //CloseAudioDevice();
+   
+    CloseWindow(); // fecha a janela
+    // Estrutura para armazenar os vencedores
     return 0;
 }
-/* if(gamewin == 1) {
-    char nome_player[20];
-    char c;
-    int i = 0, j = 10;
-    loadwinnerlist();
-    printf("Escreva seu nome e entre para a Lista de Vencedores: ");
-
-    while ((c = getchar()) != '\n' && i < 19) {
-      if(isalnum(c) != 0) {
-        nome_player[i] = c;
-        i++;
-      }
-    }
-
-    nome_player[i] = '\0';
-    fflush(stdout);
-    printf("%s, tempo de jogo: %d ticks\n\n", nome_player, play_time);
-    add_jogador(&head, nome_player, play_time);
-    
-    play_time = elapsedTime?*/
