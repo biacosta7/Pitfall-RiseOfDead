@@ -12,7 +12,7 @@ Prepare-se para uma corrida intensa pela sobrevivência!
 - Superar obstáculos e armadilhas ao longo do caminho.
 - Alcançar o abrigo final para garantir a vitória.
 
-**Tutorial de Compilação**
+## **Tutorial de Compilação**
 
 1-**Baixar dependências**
 -sudo apt update
