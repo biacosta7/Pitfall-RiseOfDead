@@ -143,6 +143,7 @@ struct Winners{
     struct Winners *next;
 };
 struct Winners *head = NULL;
+
 void add_winner(struct Winners **head, char *nome, int tempo){
     struct Winners *n = *head;
     struct Winners *novo = (struct Winners *)malloc(sizeof(struct Winners));
