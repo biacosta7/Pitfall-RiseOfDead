@@ -197,7 +197,7 @@ void winnerList(){
 
 void writeWinners(){
     FILE *list;
-    list = fopen("winners.txt", "w");
+    list = fopen("winners.txt", "a");
     struct Winners *n = head;
     while(n != NULL){
         fprintf(list,"%s %d\n", n->nome, n->tempo);
