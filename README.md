@@ -27,7 +27,8 @@ Prepare-se para uma corrida intensa pela sobrevivência!
 **3- Comandos para compilação:** 
 
 - gcc main.c -o main -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
-- (ou o seguinte - alternativo para Mac)
+
+  (ou o seguinte - alternativo para Mac)
 - gcc main.c -o main -lraylib -lm -lpthread -ldl 
 
 - ./main
