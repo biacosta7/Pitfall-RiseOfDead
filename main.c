@@ -12,7 +12,7 @@
 #define LAYER_COUNT 2
 #define MAX_LIVES 3
 #define GRAVITY 15.0f
-#define MAX_ENEMIES 10
+#define MAX_ENEMIES 12
 #define MAX_ZOMBIE_HANDS 15
 #define MAX_POTIONS 3
 #define NUM_POTIONS 3
@@ -20,16 +20,16 @@
 typedef enum { IDLE, RUNNING, JUMPING, ATTACK, HURT, DEAD } PersonagemState;
 typedef enum { START_SCREEN, GAMEPLAY, FINAL } GameState;
 const char *historiaDoJogo = "Em uma sociedade marcada pela decadência, a elite recrutou uma\n\n" 
-                               "\tequipe de cientistas e após anos de pesquisa em um projeto\n\n"
-                                "\t\tsecreto, criou uma substância destinada à imortalidade,\n\n"
-                                "\t\tacreditando ser a única esperança para a sobrevivência\n\n"
-                                "\tsobrevivência humana. Porém, o experimento saiu do controle,\n\n"
-                                "\t\t\t\t\t\ttransformando a maioria da população em zumbis.\n\n "
+                               "\tequipe de cientistas, e após anos de pesquisa em um projeto\n\n"
+                                "\t\tsecreto, criou-se uma substância destinada à imortalidade,\n\n"
+                                "\t\t acreditando ser a única esperança para a sobrevivência\n\n"
+                                "\t\t\t\t\t\thumana. Porém, o experimento saiu do controle,\n\n"
+                                "\t\t\t\t\t transformando a maioria da população em zumbis.\n\n "
                                 "\nVocê é um dos poucos que escaparam de uma tentativa de invasão\n\n"
                                 "à essa fortaleza, mas agora, na floresta densa, hordas de zumbis \n\n"
                                 "\testão por toda parte. Para alcançar a segurança, você deve\n\n"
-                                "\t\tcorrer por perigosas áreas infestadas, coletar suprimentos.\n\n"
-                                "\t\tSua meta é chegar a um abrigo subterrâneo, onde os últimos\n\n"
+                                "\t\tcorrer por perigosas áreas infestadas e coletar suprimentos.\n\n"
+                                "\t\tSua meta é chegar à um abrigo subterrâneo, onde os últimos\n\n"
                                 "\t\t\t\t\t\t\t\t\t\t\tcientistas tentam criar uma vacina.\n\n";
 const char *tituloDoJogo = "Pitfall: Rise of Dead";
 
@@ -206,39 +206,58 @@ void writeWinners(){
     fclose(list);
 }
 
+void DrawTimer(Camera2D camera, int timerValue);
+void DrawLives(Player player, Camera2D camera);
+//player
+void UpdatePlayerAnimation(Player *player, float deltaTime);
+void DrawPlayer(Player player);
+void UpdateEnemyAnimation(Enemy *enemy, float deltaTime);
+//enemy
+void DrawEnemy(Enemy enemy);
+void InitEnemySpawners(EnemySpawner enemies[], int count, Enemy baseEnemy);
+void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *platforms, int total_ground_count);
+void InitZombieHands(ZombieHand hands[], int count, int screenWidth, int screenHeight, Texture2D zombiehand_texture, int platform_height);
+void UpdateEnemyPosition(Enemy *enemy, Player player);
+//gravidade e colisão
+int player_na_plataforma(Player player, Platform platforms[], int total_ground_count);
+int enemy_na_plataforma(Enemy enemy, Platform platforms[], int total_ground_count);
+bool enemy_colide_player(Enemy enemy, Player player);
+bool player_colide_enemy(Enemy enemy, Player player);
 void aplica_gravidade_player(Player *player, Platform platforms[], int total_ground_count, float deltaTime);
 void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_ground_count, float deltaTime);
+//hands
 void DrawZombieHands(ZombieHand hands[], int count);
 void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colidiuHand);
 bool player_colide_hand(ZombieHand hand, Player player);
+//potion
+bool player_colide_potion(Player player, Potion potion, int screenHeight, int platform_height);
 
 void DrawBackground(Texture2D background, int screenWidth, int screenHeight, Camera2D camera) {
     float scale;
     float deslocamento_x = 0;
     float deslocamento_y = 0;
 
-    // Calcular fator de escala para cobrir a tela inteira
+    // calcula fator de escala p cobrir a tela inteira
     float scaleX = (float)screenWidth / background.width;
     float scaleY = (float)screenHeight / background.height;
     
-    // Escolher o maior fator de escala para garantir que a imagem cubra a tela
+    // escolhe o maior fator de escala p garantir que a imagem cubra a tela
     if (scaleX > scaleY) {
         scale = scaleX;
     } else {
         scale = scaleY;
     }
 
-    // Ajustar deslocamento para centralizar a imagem
+    // ajusta deslocamento para centralizar a imagem
     if (background.width * scale > screenWidth)
         deslocamento_x = (screenWidth - (background.width * scale)) / 2;
     if (background.height * scale > screenHeight)
         deslocamento_y = (screenHeight - (background.height * scale)) / 2;
 
-    // Aplicar o deslocamento da câmera para o efeito parallax
+    // aplica o deslocamento da câmera para o efeito parallax
     deslocamento_x += camera.offset.x * 0.1f; 
     deslocamento_y += camera.offset.y * 0.1f;
 
-    // Desenhar o background escalado
     DrawTextureEx(background, (Vector2){deslocamento_x, deslocamento_y}, 0, scale, WHITE);
 }
 
@@ -265,7 +284,6 @@ void DrawTimer(Camera2D camera, int timerValue) {
     char timerText[10];
     snprintf(timerText, sizeof(timerText), "%d", timerValue);
 
-    // Desenha o texto na posição ajustada
     DrawText(timerText, posX, posY, 20, RED);
 }
 
@@ -307,7 +325,7 @@ void DrawPlayer(Player player) {
     }
     
     if (player.maxFrames <= 0) {
-        player.maxFrames = 1;  // Set a safe default
+        player.maxFrames = 1;  // safe default
     }
     int frameWidth = texture.width / player.maxFrames;
     
@@ -329,12 +347,10 @@ void DrawPlayer(Player player) {
 void UpdateEnemyAnimation(Enemy *enemy, float deltaTime) {
     enemy->currentFrameTime += deltaTime;
 
-    // Advance to next frame if enough time has passed
     if (enemy->currentFrameTime >= enemy->frameTime) {
         enemy->currentFrameTime = 0;
         enemy->frame++;
         
-        // Reset frame based on current state
         switch(enemy->state) {
             case RUNNING:
                 if (enemy->frame >= 7) {
@@ -346,7 +362,6 @@ void UpdateEnemyAnimation(Enemy *enemy, float deltaTime) {
             case ATTACK:
                 if (enemy->frame >= 4) {
                     enemy->frame = 0;
-                    // Optionally return to IDLE after attack animation
                     enemy->state = IDLE;
                     enemy->maxFrames = 8;
                     enemy->frameTime = 1.0f;
@@ -358,21 +373,20 @@ void UpdateEnemyAnimation(Enemy *enemy, float deltaTime) {
                 break;
             
             case HURT:
-                if (enemy->frame < 3) { // Avança os frames apenas até o último
+                if (enemy->frame < 3) { // avança os frames apenas até o último
                     enemy->frame++;
                 }
-                // Quando atingir o último frame, fica parado nele
+                // quando atingir o ultimo frame, fica parado nele
                 if (enemy->frame >= 3) {
-                    enemy->frame = 3; // Fixa no último frame
+                    enemy->frame = 3; // fixa no último frame
                 }
                 break;
             case DEAD:
-                if (enemy->frame < 4) { // Avança os frames apenas até o último
+                if (enemy->frame < 4) { // avança os frames apenas até o último
                     enemy->frame++;
                 }
-                // Quando atingir o último frame, fica parado nele
                 if (enemy->frame >= 4) {
-                    enemy->frame = 4; // Fixa no último frame
+                    enemy->frame = 4; // fixa no último frame
                 }
                 break;
             default:
@@ -405,7 +419,7 @@ void DrawEnemy(Enemy enemy) {
     }
 
     if (enemy.maxFrames <= 0) {
-        enemy.maxFrames = 1;  // Set a safe default
+        enemy.maxFrames = 1;  // safe default
     }
     int frameWidth = texture.width / enemy.maxFrames;
         
@@ -420,17 +434,16 @@ void DrawEnemy(Enemy enemy) {
     Rectangle destRect = { enemy.x, enemy.y, enemy.width * 6, enemy.height * 6 };
     Vector2 origin = { 0, 0 };
     
-    // desenha o frame atual da spritesheet, aplicando o flip horizontal se necessário
     DrawTexturePro(texture, sourceRect, destRect, origin, 0.0f, WHITE);
 }
 
 void InitEnemySpawners(EnemySpawner enemies[], int count, Enemy baseEnemy) {
-    float spawnDistance = 800.0f;  // Distance between spawn points
+    float spawnDistance = 800.0f;
     
     for(int i = 0; i < count; i++) {
-        enemies[i].enemy = baseEnemy;  // Copy the base enemy properties
+        enemies[i].enemy = baseEnemy;
         enemies[i].isActive = false;
-        enemies[i].spawnX = (i + 1) * spawnDistance;  // Set spawn points progressively further
+        enemies[i].spawnX = (i + 1) * spawnDistance;
         enemies[i].enemy.decreaseLives = false;
     }
 }
@@ -459,7 +472,6 @@ int player_na_plataforma(Player player, Platform platforms[], int total_ground_c
     }
     return -1;
 }
-
 
 int enemy_na_plataforma(Enemy enemy, Platform platforms[], int total_ground_count) {
     Rectangle enemy_rec = {
@@ -582,23 +594,22 @@ void UpdateEnemyPosition(Enemy *enemy, Player player) {
     }
 }
 
-// Update and manage enemy spawning
 void UpdateEnemies(EnemySpawner enemies[], int count, Player player, Platform *platforms, int total_ground_count) {
-    float spawnTriggerDistance = 400.0f;  // Distance before spawn point when enemy should appear
-    
+    float spawnDistance = 1000.0f; 
+
     for(int i = 0; i < count; i++) {
         if (!enemies[i].isActive) {
-            // Check if player is approaching this spawn point
-            if (player.x > (enemies[i].spawnX - spawnTriggerDistance)) {
+            // verifica se o player ta chegando no spawn
+            if (player.x > (enemies[i].spawnX - spawnDistance)) {
                 enemies[i].isActive = true;
                 enemies[i].enemy.x = enemies[i].spawnX;
-                enemies[i].enemy.y = player.y;  // Or your ground level
+                enemies[i].enemy.y = player.y;
             }
         }
         else {
             aplica_gravidade_enemy(&enemies[i].enemy, platforms, total_ground_count, GetFrameTime());
-            UpdateEnemyPosition(&enemies[i].enemy, player); // Update active enemy
-            UpdateEnemyAnimation(&enemies[i].enemy, GetFrameTime()); // Update enemy animation
+            UpdateEnemyPosition(&enemies[i].enemy, player);
+            UpdateEnemyAnimation(&enemies[i].enemy, GetFrameTime()); 
         }
     }
 }
@@ -607,14 +618,14 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_gro
 
     const float MAX_FALL_SPEED = 10.0f;
     int current_platform = player_na_plataforma(*player, platforms, total_ground_count);
-    bool on_floor = (current_platform != -1); // Player is over a FLOOR type pit
+    bool on_floor = (current_platform != -1); // player ta no FLOOR
     
-    // Apply gravity if not on floor, regardless of jump state
+    // gravity se nao tiver no chão
     if (!on_floor || player->isJumping) {
         player->velocityY += GRAVITY * deltaTime;
     }
 
-    // Clamp fall speed
+    // fall speed
     if (player->velocityY > MAX_FALL_SPEED) {
         player->velocityY = MAX_FALL_SPEED;
     }
@@ -622,12 +633,12 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_gro
     // Update position
     player->y += player->velocityY * deltaTime * 60.0f;
     
-    // Check floor collision again after movement
+    // verifica colisao pós movimento
     current_platform = player_na_plataforma(*player, platforms, total_ground_count);
 
     if (current_platform != -1) {
-        // If colliding with floor
-        if (player->velocityY > 0) {  // Only if moving downward
+        // if colliding floor
+        if (player->velocityY > 0) {  // se tiver descendo
             player->isJumping = false;
             player->y = platforms[current_platform].y - (player->height * 6);
             player->velocityY = 0.0;
@@ -641,26 +652,21 @@ void aplica_gravidade_player(Player *player, Platform platforms[], int total_gro
 }
 
 void aplica_gravidade_enemy(Enemy *enemy, Platform platforms[], int total_ground_count, float deltaTime) {
-    const float MAX_FALL_SPEED = 10.0f;  // Maximum falling speed
+    const float MAX_FALL_SPEED = 10.0f;  // max falling speed
     
-    // Apply gravity with deltaTime
+    // gravity with deltaTime
     enemy->velocityY += GRAVITY * deltaTime;
 
-    // Clamp fall speed
     if (enemy->velocityY > MAX_FALL_SPEED) {
         enemy->velocityY = MAX_FALL_SPEED;
     }
     
-    // Update position
     enemy->y += enemy->velocityY * deltaTime * 60.0f;
     
-    // Check pit collision
     int current_platform_enemy = enemy_na_plataforma(*enemy, platforms, total_ground_count);
 
     if (current_platform_enemy != -1) {
-        // If colliding with pit
-        if (enemy->velocityY > 0) {  // Only if moving downward
-            // Snap to pit top
+        if (enemy->velocityY > 0) {  // se tiver caindo
             enemy->y = platforms[current_platform_enemy].y - (enemy->height * 6);
             enemy->velocityY = 0;
         }
@@ -672,26 +678,25 @@ void InitZombieHands(ZombieHand hands[], int count, int screenWidth, int screenH
   
     for(int i = 0; i < count; i++) {
         hands[i].x = (i + 1) * spawnDistance;
-        hands[i].y = screenHeight - platform_height - hands[i].height - 30;  // This will place hands right above the platform
+        hands[i].y = screenHeight - platform_height - hands[i].height - 30;  // bota no topo da plataform
         hands[i].width = 60;
         hands[i].height = 60;
         hands[i].texture = zombiehand_texture;
         hands[i].isActive = false;
-        hands[i].initialX = hands[i].y + (hands[i].height * 6) - 10; // Store initial spawn position
+        hands[i].initialX = hands[i].y + (hands[i].height * 6) - 10; // initial spawn position
     }
 }
 
 void UpdateZombieHands(ZombieHand hands[], int count, Player player, bool *colidiuHand) {
-    float spawnTriggerDistance = 150.0f;
-    *colidiuHand = false;  // Reset at start of update
+    float spawnDistance = 800.0f;
+    *colidiuHand = false;
     
     for(int i = 0; i < count; i++) {
         if (!hands[i].isActive) {
-            if (player.x > (hands[i].initialX - spawnTriggerDistance)) {
+            if (player.x > (hands[i].initialX - spawnDistance)) {
                 hands[i].isActive = true;
             }
         }
-        // Check collision only for active hands
         else if (hands[i].isActive) {
            if(player_colide_hand(hands[i], player)){
                 *colidiuHand = true;
@@ -723,7 +728,7 @@ bool player_colide_hand(ZombieHand hand, Player player){
 void DrawZombieHands(ZombieHand hands[], int count) {
     for(int i = 0; i < count; i++) {
         
-        // Skip if position is invalid OR hand is inactive
+        // pula se a position é invalida OR inativa
         if (hands[i].x == -1 || hands[i].y == -1 || !hands[i].isActive) {
             continue;
         }
@@ -745,8 +750,8 @@ bool player_colide_potion(Player player, Potion potion, int screenHeight, int pl
     Rectangle potion_rec = {
         .width = potion.width,
         .height = potion.height, 
-        .x = potion.x,  // x position with offset
-        .y = potion.y, // y position with offset
+        .x = potion.x,
+        .y = potion.y,
 
     };
 
@@ -764,16 +769,16 @@ bool player_colide_potion(Player player, Potion potion, int screenHeight, int pl
 int main(void){
     bool isFinalPhaseTriggered = false;
     bool isGameOver = false;
-    // cria window
     int screenWidth = SCREEN_WIDTH * SCALE_FACTOR;
     int screenHeight = SCREEN_HEIGHT * SCALE_FACTOR;
     int potionsCollected = 0;
-    static char nome[256]= ""; // Buffer para o texto inserido
-    int letterCount = 0; // Número de caracteres no texto
-    int maxLength = 30; // Limite de caracteres
+    static char nome[256]= ""; // buffer pro texto
+    int letterCount = 0; // n caracteres no texto
+    int maxLength = 30; // limite de caracteres
+    int foiAdicionado = 0;
 
     InitWindow(screenWidth, screenHeight, "Pitfall - Rise Of Dead");
-    //InitAudioDevice();
+    InitAudioDevice();
     double startTime = 0.0;
     double elapsedTime = 0;
     bool timeStarted = false;
@@ -826,10 +831,8 @@ int main(void){
 
     int total_ground_count = ceil((float)worldWidth / (float)platform_width); // calcula quantos pedacos de chão são necessários pra cobrir toda a largura do mundo
     
-    // criando chão (floor)
     Platform platforms[total_ground_count];
     
-    // Alternância das platforms sem espaços entre elas
     int platform_x = 0;  // acumula 
 
     for(int i=0; i < total_ground_count; i++){
@@ -937,7 +940,6 @@ int main(void){
             int posYhistoria = 150;
             int fonttitulo = 40;
             int fonthistoria = 30;
-            // cor titulo = preto, cor historia = branco, cor comando = vermelho
             Vector2 posTitulo = { 420, 40 };
             Vector2 posHistoria = { 155, 150 };
 
@@ -1028,7 +1030,7 @@ int main(void){
                 }
             }
             if (IsKeyDown(KEY_R)) {
-                if (player.state != ATTACK && !player.isJumping && !player.isDead) { // Prevent attacking while jumping
+                if (player.state != ATTACK && !player.isJumping && !player.isDead) {
                     player.state = ATTACK;
                     player.frame = 0;
                     player.maxFrames = 5;
@@ -1063,9 +1065,9 @@ int main(void){
 
             // limites do player
             if (player.x < 0) {
-                player.x = 0;  // Stop at left edge
-            } else if (player.x > (worldWidth - (player.width * 3))) {  // Accounting for player bounds
-                player.x = (worldWidth - (player.width * 3));  // Stop at right edge
+                player.x = 0;  // para na esquerda
+            } else if (player.x > (worldWidth - (player.width * 3))) {
+                player.x = (worldWidth - (player.width * 3));  // para na direita
             }
 
             UpdatePlayerAnimation(&player, deltaTime);
@@ -1073,7 +1075,7 @@ int main(void){
             // primeiro background layer (moves slower)
             for (int i = 0; i < num_backgrounds_needed; i++) {
                 DrawTexture(background_texture, i * background_width - (camera.target.x * 0.3f), 0, WHITE);
-            } // mais devadar (0.3 = 30% da camera speed)
+            } // (0.3 = 30% da camera speed)
 
             // segundo background layer (moves faster)
             float parallax_factor = 0.3f;  
@@ -1084,7 +1086,6 @@ int main(void){
             UpdateEnemies(enemies, MAX_ENEMIES, player, platforms, total_ground_count);
             UpdateZombieHands(zombie_hands, MAX_ZOMBIE_HANDS, player, &colidiuHand);
             DrawPlayer(player);
-            // Verifica colisão com as poções
 
             for(int i = 0; i < MAX_ENEMIES; i++) {
                 if(enemies[i].isActive) {
@@ -1092,23 +1093,18 @@ int main(void){
                 }
             }
 
-            // Durante o jogo, verificar a coleta ou desativação
             for (int i = 0; i < MAX_POTIONS; i++) {
                 if (potions[i].active) {
-                    // Checar colisão ou condição para desativar
                     if (player_colide_potion(player, potions[i], screenHeight, platform_height)) {
                         potions[i].active = false;
                         activePotions--;
-                        potionsCollected++; // Incrementa o contador
-
-                        // Reposiciona a poção em um local aleatório
+                        potionsCollected++;
                         
                     }
                     DrawTexture(potions[i].texture, potions[i].x, potions[i].y, WHITE);
                 }
             }
 
-            // Desenha o contador no canto superior direito
             int posX = (screenWidth - 60) - camera.offset.x;
             int posY = 30 - camera.offset.y;
             DrawTexture(PotionIcon, posX-30, posY, WHITE);
@@ -1118,19 +1114,16 @@ int main(void){
             for (int i = 0; i < total_ground_count; i++) {
                 Texture2D platform_texture;
                 
-                // Alterna entre as texturas conforme o tipo da platform
+                // alterna entre as texturas conforme o tipo da platform
                 if (platforms[i].type == FLOOR) {
-                    // draw hand
                     DrawZombieHands(zombie_hands, MAX_ZOMBIE_HANDS);
-                    platform_texture = floor_texture;  // Usa `floor_texture` para FLOOR
+                    platform_texture = floor_texture;  // usa `floor_texture` para FLOOR
                 } else {
-                    platform_texture = pit2_texture;  // Usa `pit2_texture` para PIT
+                    platform_texture = pit2_texture;  // usa `pit2_texture` para PIT
                 }
 
-                // Desenha a textura atual na posição correspondente da platform
                 DrawTexture(platform_texture, platforms[i].x, platforms[i].y - whitespace, WHITE);
             }
-
 
             if (player.invencivel) {
                 player.invencibilidadeTimer -= GetFrameTime();
@@ -1139,7 +1132,6 @@ int main(void){
                 }
             }
             
-
             for (int i = 0; i < MAX_ENEMIES; i++) {
                 if (enemies[i].isActive) {
                     if(player.isAttacking && !enemies[i].enemy.invencivel){
@@ -1163,7 +1155,6 @@ int main(void){
                         else if(player.lives == 0){
                             isGameOver = true;
                             player.isDead = true;
-                            PauseMusicStream(music);
                         }
                     }
 
@@ -1184,7 +1175,6 @@ int main(void){
                     else if(player.lives == 0){
                         isGameOver = true;
                         player.isDead = true;
-                        PauseMusicStream(music);
                     }
                 } 
             }
@@ -1211,10 +1201,9 @@ int main(void){
                 if(potionsCollected == 3) {
                     gameState = FINAL;
                 } else {
-                    text = "Você não coletou todos os itens necessários\n\n para ajudar os cientistas à produzir a cura";
+                    text = "\tVocê não coletou todos os\n\nitens necessários para a cura.";
                 }
                 int textWidth = MeasureText(text, 40);
-                // Draw text at the top of the screen
                 DrawText(text,
                     (12530 - textWidth),  // X
                     screenHeight / 2 - 20, // Y
@@ -1223,9 +1212,8 @@ int main(void){
             }
         }
         else if (gameState == FINAL) {
-
             // Mensagem principal
-            const char *message = "Parabéns!\n\nVocê chegou no abrigo e coletou todos\n\nos itens para ajudar os cientistas\n\nà produzir a cura";
+            const char *message = "Parabéns!\n\n\nVocê chegou no abrigo e coletou todos\n\nos itens para ajudar os cientistas\n\nà produzir a cura";
             int textWidth = MeasureText(message, 40);
 
             BeginDrawing();
@@ -1249,7 +1237,7 @@ int main(void){
                 }
                 ch = GetCharPressed(); // Captura o próximo caractere
             }
-            int foiAdicionado = 0;
+            
             // Apagar com BACKSPACE
             if (IsKeyPressed(KEY_BACKSPACE) && letterCount > 0) {
                 letterCount--;
@@ -1262,12 +1250,12 @@ int main(void){
             }
 
             if(foiAdicionado == 1){
-                DrawText("Nome adicionado!", (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 230, 20, DARKGREEN);
+                DrawText("Nome adicionado à lista de vencedores!", (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 230, 20, DARKGREEN);
             }
 
             // Renderizar entrada de nome
-            DrawText("Digite seu nome:", (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 150, 20, GREEN);
-            DrawText(nome, (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 190, 20, GREEN);
+            DrawText("Digite seu nome:", (GetScreenWidth() - textWidth) + 20, (GetScreenHeight() / 2) + 150, 20, LIGHTGRAY);
+            DrawText(nome, (GetScreenWidth() - textWidth) + 190, (GetScreenHeight() / 2) + 150, 20, LIGHTGRAY);
         }
 
         EndDrawing();
@@ -1292,7 +1280,6 @@ int main(void){
     UnloadMusicStream(music);
     CloseAudioDevice();
    
-    CloseWindow(); // fecha a janela
-    // Estrutura para armazenar os vencedores
+    CloseWindow();
     return 0;
 }
